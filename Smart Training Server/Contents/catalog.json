@@ -1,0 +1,10 @@
+[
+  {
+    "rootContent": "sample-training",
+    "id": 1,
+    "title": "테스트 훈련 콘텐츠",
+    "children": [
+      { "id": 2, "title": "기본 훈련 단계", "children": [] }
+    ]
+  }
+]

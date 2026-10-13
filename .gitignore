@@ -1,0 +1,26 @@
+# IDE and build outputs
+.vs/
+.idea/
+**/bin/
+**/obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+# Unity dedicated server builds are generated from the companion repository
+**/RoomServer/
+# Local settings, credentials and logs
+*.log
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+appsettings.*.Local.json
+*.pfx
+*.p12
+*.pem
+*.key
+*.bak
+*.original
+Thumbs.db
+.DS_Store

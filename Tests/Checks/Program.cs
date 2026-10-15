@@ -109,6 +109,21 @@ var failed = await Reserve(a, pendingRoom); // No Unity executable exists in the
 Check(!failed.Success && a.PendingRoomId == "" && pendingRoom.ReservedUsers == 0, "release reservation after server launch failure");
 
 ConfigurationChecks.Run();
+await CatalogLobbyChecks.Run();
+await OperationsChecks.Run();
+await OperationsHistoryChecks.Run();
+await MaintenanceChecks.Run();
+await ShutdownChecks.Run();
+await OperatingModeChecks.Run();
+await SettingsChecks.Run();
+await ConcurrentRoomChecks.Run();
+await JoinCancellationChecks.Run();
+await LobbyUpdatesChecks.Run();
+await LobbyChatChecks.Run();
+await RoomChatChecks.Run();
+await LobbyParticipantsChecks.Run();
+await CloseRoomChecks.Run();
+await PasswordRoomChecks.Run();
 await ContentChecks.Run();
 await QueryChecks.Run();
 await AuthChecks.Run();
@@ -122,3 +137,5 @@ sealed class TestClock : TimeProvider
     public override DateTimeOffset GetUtcNow() => now;
     public void Advance(TimeSpan amount) => now += amount;
 }
+
+

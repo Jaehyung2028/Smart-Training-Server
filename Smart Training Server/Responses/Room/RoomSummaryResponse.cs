@@ -16,6 +16,8 @@ public sealed class RoomSummaryResponse
     public int AvailableSlots { get; init; }
     public string MasterUserId { get; init; } = string.Empty;
     public bool IsEntryLocked { get; init; }
+    public bool HasPassword { get; init; }
+    public bool IsRunning { get; init; }
     public ServerState State { get; init; }
     public DateTime CreatedAt { get; init; }
 }

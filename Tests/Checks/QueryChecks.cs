@@ -66,13 +66,14 @@ internal static class QueryChecks
             Check(!lobbyRaw.Contains("private-server-token") && !lobbyRaw.Contains(admission.AdmissionToken) && !lobbyRaw.Contains("\"users\"") && !lobbyRaw.Contains("\"rooms\"") && !lobbyRaw.Contains("\"contents\""), "lobby list excludes nested internal objects and tokens");
             var contentList = await client.GetFromJsonAsync<Smart_Training_Server.Responses.Lobby.ContentQueryResponse[]>($"api/Lobby/{lobby.Id}/contents");
             var expectedContent = lobby.Contents["sample-training"];
-            Check(contentList!.Single().RootContent == "sample-training" && contentList![0].Id == expectedContent.Id && contentList![0].Children.Count == expectedContent.Children.Count, "content query preserves root identifiers and hierarchy");
+            var queriedContent = contentList!.Single(item => item.RootContent == "sample-training");
+            Check(contentList.Length == lobby.Contents.Count && queriedContent.Id == expectedContent.Id && queriedContent.Children.Count == expectedContent.Children.Count, "content query preserves all roots and sample hierarchy");
             var contentRaw = await client.GetStringAsync($"api/Lobby/{lobby.Id}/contents");
             Check(!contentRaw.Contains("\"path\"", StringComparison.OrdinalIgnoreCase), "content query excludes server file paths");
             var contentSnapshot = lobbies.GetContentsByLobby(lobby.Id)!;
             var previousTitle = expectedContent.Title;
             expectedContent.Title = "changed-title";
-            Check(contentSnapshot[0].Title == previousTitle && lobbies.GetContentsByLobby(lobby.Id)![0].Title == "changed-title", "content query returns independent snapshot");
+            Check(contentSnapshot.Single(item => item.RootContent == "sample-training").Title == previousTitle && lobbies.GetContentsByLobby(lobby.Id)!.Single(item => item.RootContent == "sample-training").Title == "changed-title", "content query returns independent snapshot");
             expectedContent.Title = previousTitle;
             Check((await client.GetAsync("api/Lobby/missing")).StatusCode == HttpStatusCode.NotFound && (await client.GetAsync("api/Lobby/missing/contents")).StatusCode == HttpStatusCode.NotFound, "lobby and content query return 404 for missing lobby");
             using (var anonymous = new HttpClient { BaseAddress = client.BaseAddress })

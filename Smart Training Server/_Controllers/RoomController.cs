@@ -72,7 +72,7 @@ namespace Smart_Training_Server._Controllers
         {
             request.UserId = GetAuthenticatedUserId();
             JoinRoomResponse response =
-                await roomService.JoinRoom(request);
+                await roomService.JoinRoom(request, HttpContext.RequestAborted);
 
             if (!response.Success)
             {
@@ -90,6 +90,14 @@ namespace Smart_Training_Server._Controllers
             return Ok(response);
         }
 
+        [HttpPost("settings")]
+        public ActionResult<RoomMasterResponse> UpdateRoomSettings(UpdateRoomSettingsRequest request)
+        {
+            var response = roomService.UpdateRoomSettings(GetAuthenticatedUserId(), request);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+
         [HttpPost("entry-lock")]
         public ActionResult<RoomMasterResponse> SetRoomEntryLock(SetRoomEntryLockRequest request)
         {
@@ -101,6 +109,24 @@ namespace Smart_Training_Server._Controllers
         private string GetAuthenticatedUserId() =>
             User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
             ?? throw new InvalidOperationException("인증된 사용자 ID가 없습니다.");
+
+        [HttpPost("password")]
+        public ActionResult<Smart_Training_Server.Responses.Base.BaseResponse> UpdateRoomPassword(UpdateRoomPasswordRequest request)
+        {
+            var response = roomService.UpdateRoomPassword(GetAuthenticatedUserId(), request);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+
+        [HttpPost("close")]
+        public async Task<ActionResult<Smart_Training_Server.Responses.Base.BaseResponse>> CloseRoom(
+            CloseRoomRequest request,
+            [FromServices] Microsoft.AspNetCore.SignalR.IHubContext<Smart_Training_Server.Hubs.RoomHub> roomHub)
+        {
+            var response = await roomService.CloseRoomAsync(GetAuthenticatedUserId(), request, roomHub);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
 
         [HttpPost("kick")]
         public async Task<ActionResult<Smart_Training_Server.Responses.Base.BaseResponse>> KickRoomUser(

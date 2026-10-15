@@ -21,11 +21,13 @@ namespace Smart_Training_Server.Services.Room
         private readonly UserService userService;
         private readonly RoomOptions roomOptions;
         private readonly IRoomServerProcessManager processManager;
+        private readonly Smart_Training_Server.Services.Operations.ServerOperationsRegistry operations;
 
         public RoomService(LobbyService lobbyService, 
             UserService userService, 
             IOptions<RoomOptions> options, TimeProvider? timeProvider = null,
-            IRoomServerProcessManager? processManager = null)
+            IRoomServerProcessManager? processManager = null,
+            Smart_Training_Server.Services.Operations.ServerOperationsRegistry? operations = null)
         {
             this.lobbyService = lobbyService;
             this.userService = userService;
@@ -33,21 +35,9 @@ namespace Smart_Training_Server.Services.Room
             roomOptions = options.Value;
             this.timeProvider = timeProvider ?? TimeProvider.System;
             this.processManager = processManager ?? new RoomServerProcessManager(roomOptions.ServerApiBaseUrl);
+            this.operations = operations ?? new();
             if (string.IsNullOrWhiteSpace(roomOptions.ServerExecutablePath) || roomOptions.ServerReadyTimeoutSeconds is < 1 or > 300)
                 throw new ArgumentOutOfRangeException(nameof(options), "서버 경로와 1~300초의 준비 대기 시간을 설정해주세요.");
-        }
-
-        public void OnDisconnected(string roomId)
-        {
-            RoomInfo? room = FindById(roomId);
-
-            if (room == null)
-                return;
-
-            room.State = ServerState.Creating;
-
-            Console.WriteLine(
-                $"[Room] Disconnected : {room.Name}");
         }
 
         public RoomInfo? FindById(string roomId)
@@ -62,16 +52,6 @@ namespace Smart_Training_Server.Services.Room
             lobby.Rooms.TryGetValue(roomId, out RoomInfo? room);
 
             return room;
-        }
-
-        public bool TryGet(string roomId, out RoomInfo? room)
-        {
-            return rooms.TryGetValue(roomId, out room);
-        }
-
-        public IEnumerable<RoomInfo> GetAll()
-        {
-            return rooms.Values;
         }
 
         private bool ExistsRoomName(LobbyInfo lobby, string roomName)
@@ -118,6 +98,8 @@ namespace Smart_Training_Server.Services.Room
 
         private CreateRoomResponse CreateRoomCore(CreateRoomRequest request)
         {
+            if (!RoomPassword.Valid(request.Password))
+                return new() { Success = false, Message = "방 비밀번호는 4~32자이며 공백만 사용할 수 없습니다." };
             // 1. 방 이름 공백 검사
             if (string.IsNullOrWhiteSpace(request.RoomName))
             {
@@ -216,6 +198,7 @@ namespace Smart_Training_Server.Services.Room
                 content,
                 request);
 
+            RoomPassword.Set(room, request.Password);
             if(!rooms.TryAdd(room.Id, room))
             {
                 return new CreateRoomResponse
@@ -305,6 +288,7 @@ namespace Smart_Training_Server.Services.Room
 
         private bool LaunchRoomServer(RoomInfo room)
         {
+            operations.Record("room", room.Id, room.LobbyId, room.Name, "starting");
             try
             {
                 processManager.Launch(
@@ -378,6 +362,7 @@ namespace Smart_Training_Server.Services.Room
             }
 
             room.State = ServerState.Running;
+            operations.Record("room", room.Id, room.LobbyId, room.Name, "ready");
 
             room.LastActiveTime = DateTime.UtcNow;
 
@@ -516,6 +501,7 @@ namespace Smart_Training_Server.Services.Room
             }
 
             room.State = ServerState.Stopped;
+            operations.Record("room", room.Id, room.LobbyId, room.Name, "stopped", "방 삭제");
 
             // READY 대기 제거
             if (readyMap.TryRemove(room.Id, out var readyTask))
@@ -537,4 +523,6 @@ namespace Smart_Training_Server.Services.Room
             return true;
         }
     }
-}
+        }
+
+

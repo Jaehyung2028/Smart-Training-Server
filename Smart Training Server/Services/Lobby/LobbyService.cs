@@ -1,11 +1,9 @@
 using Microsoft.Extensions.Options;
-using Smart_Training_Server.Enum;
 using Smart_Training_Server.Models;
 using Smart_Training_Server.Options;
 using Smart_Training_Server.Requests.Lobby;
 using Smart_Training_Server.Responses.Lobby;
 using Smart_Training_Server.Services.Auth;
-using Smart_Training_Server.Helper;
 using System.Collections.Concurrent;
 
 namespace Smart_Training_Server.Services.Lobby
@@ -14,36 +12,23 @@ namespace Smart_Training_Server.Services.Lobby
     {
         private readonly ConcurrentDictionary<string, LobbyInfo> lobbies = new();
 
-        private readonly ConcurrentDictionary<string, TaskCompletionSource<bool>> readyMap = new();
-
-        private readonly ConcurrentDictionary<string, object> locks = new();
-
         private readonly ContentService contentService;
         private readonly UserService userService;
         private readonly LobbyOptions lobbyOptions;
+        private readonly Smart_Training_Server.Services.Operations.ServerOperationsRegistry operations;
 
         public LobbyService(
             ContentService contentService,
             UserService userService,
-            IOptions<LobbyOptions> options)
+            IOptions<LobbyOptions> options, ILobbyServerProcessManager? processManager = null,
+            Smart_Training_Server.Services.Operations.ServerOperationsRegistry? operations = null)
         {
             this.contentService = contentService;
             this.userService = userService;
 
             lobbyOptions = options.Value;
-        }
-
-        public void OnDisconnected(string lobbyId)
-        {
-            LobbyInfo? lobby = FindById(lobbyId);
-
-            if (lobby == null)
-                return;
-
-            lobby.State = ServerState.Creating;
-
-            Console.WriteLine(
-                $"[Lobby] Disconnected : {lobby.Name}");
+            lobbyProcesses = processManager ?? new LobbyServerProcessManager();
+            this.operations = operations ?? new();
         }
 
         public LobbyInfo? FindById(string lobbyId)
@@ -53,15 +38,7 @@ namespace Smart_Training_Server.Services.Lobby
             return lobby;
         }
 
-        public bool TryGet(string lobbyId, out LobbyInfo? lobby)
-        {
-            return lobbies.TryGetValue(lobbyId, out lobby);
-        }
-
-        public IEnumerable<LobbyInfo> GetAll()
-        {
-            return lobbies.Values;
-        }
+        public IEnumerable<LobbyInfo> GetAll() => lobbies.Values;
 
         private bool ExistsLobbyName(string lobbyName)
         {
@@ -77,8 +54,6 @@ namespace Smart_Training_Server.Services.Lobby
 
                 Name = lobbyName,
 
-                State = ServerState.Creating,
-
                 CreatedAt = DateTime.UtcNow,
 
                 LastActiveTime = DateTime.UtcNow
@@ -92,6 +67,7 @@ namespace Smart_Training_Server.Services.Lobby
 
         private CreateLobbyResponse CreateLobbyCore(CreateLobbyRequest request)
         {
+            if (catalogInitialized) return new() { Success = false, Message = "로비는 catalog.json의 콘텐츠 목록으로 관리됩니다. 목록에서 로비를 선택해주세요." };
             // 1. 공백 검사
             if (string.IsNullOrWhiteSpace(request.LobbyName))
             {
@@ -167,12 +143,13 @@ namespace Smart_Training_Server.Services.Lobby
             };
         }
 
-        public Task<JoinLobbyResponse> JoinLobby(JoinLobbyRequest request)
+        public Task<JoinLobbyResponse> JoinLobby(JoinLobbyRequest request, CancellationToken cancellationToken = default)
         {
-            lock (userService.MembershipLock) return JoinLobbyCore(request);
+            if (catalogInitialized) return JoinCatalogLobby(request, cancellationToken);
+            lock (userService.MembershipLock) return Task.FromResult(JoinLobbyCore(request));
         }
 
-        private async Task<JoinLobbyResponse> JoinLobbyCore(JoinLobbyRequest request)
+        private JoinLobbyResponse JoinLobbyCore(JoinLobbyRequest request)
         {
             // 1. 사용자 존재 확인
             UserInfo? user = userService.FindById(request.UserId);
@@ -218,16 +195,6 @@ namespace Smart_Training_Server.Services.Lobby
                 };
             }
 
-            // 5. 로비 서버 준비
-            //if (!await EnsureLobbyServer(lobby))
-            //{
-            //    return new JoinLobbyResponse
-            //    {
-            //        Success = false,
-            //        Message = "로비 서버를 시작하지 못했습니다."
-            //    };
-            //}
-
             // 6. 로비 사용자 목록에 추가
             if (!lobby.Users.TryAdd(user.Id, user))
             {
@@ -254,150 +221,6 @@ namespace Smart_Training_Server.Services.Lobby
             };
         }
 
-        private async Task<bool> EnsureLobbyServer(LobbyInfo lobby)
-        {
-            if (lobby.State == ServerState.Running)
-            {
-                return true;
-            }
-
-            TaskCompletionSource<bool> readyTask;
-
-            object lockObj =
-                locks.GetOrAdd(lobby.Id, _ => new object());
-
-            lock (lockObj)
-            {
-                // 다른 스레드가 먼저 실행했을 수도 있음
-                if (lobby.State == ServerState.Running)
-                {
-                    return true;
-                }
-
-                readyTask = CreateReadyTask(lobby);
-
-                if (lobby.State == ServerState.Creating)
-                {
-                    if (!InitializeLobby(lobby))
-                    {
-                        return false;
-                    }
-
-                    lobby.State = ServerState.Starting;
-
-                    if (!LaunchLobbyServer(lobby))
-                    {
-                        lobby.State = ServerState.Creating;
-
-                        if (readyMap.TryRemove(lobby.Id, out var cancelTask))
-                        {
-                            cancelTask.TrySetException(
-                                new Exception("로비 서버 실행에 실패했습니다."));
-                        }
-
-                        return false;
-                    }
-                }
-            }
-
-            return await WaitLobbyReady(lobby, readyTask);
-        }
-
-        private void InitializeNetwork(LobbyInfo lobby)
-        {
-            lobby.IpAddress = NetworkHelper.GetLocalIPAddress();
-            lobby.Port = PortHelper.GetAvailablePort();
-        }
-
-        private bool InitializeLobby(LobbyInfo lobby)
-        {
-            InitializeNetwork(lobby);
-
-            return true;
-        }
-
-        private bool LaunchLobbyServer(LobbyInfo lobby)
-        {
-            try
-            {
-                ProcessHelper.LaunchUnityServer(
-                    lobby.Id,
-                    lobby.Port,
-                    "LobbyServer/Smart Training Lobby.exe");
-
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private TaskCompletionSource<bool> CreateReadyTask(LobbyInfo lobby)
-        {
-            return readyMap.GetOrAdd(
-                lobby.Id,
-                _ => new TaskCompletionSource<bool>(
-                    TaskCreationOptions.RunContinuationsAsynchronously));
-        }
-
-        private async Task<bool> WaitLobbyReady(
-            LobbyInfo lobby,
-            TaskCompletionSource<bool> readyTask)
-        {
-            Task completed =
-                await Task.WhenAny(
-                    readyTask.Task,
-                    Task.Delay(TimeSpan.FromSeconds(60)));
-
-            if (completed == readyTask.Task)
-            {
-                try
-                {
-                    await readyTask.Task;
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.Message);
-
-                    lobby.State = ServerState.Creating;
-
-                    return false;
-                }
-            }
-
-            lobby.State = ServerState.Creating;
-
-            readyMap.TryRemove(lobby.Id, out _);
-
-            Console.WriteLine($"[Lobby] READY Timeout : {lobby.Id}");
-
-            return false;
-        }
-
-        public void OnReady(string lobbyId)
-        {
-            if (!lobbies.TryGetValue(lobbyId, out LobbyInfo? lobby))
-            {
-                return;
-            }
-
-            lobby.State = ServerState.Running;
-
-            CompleteReadyTask(lobbyId);
-
-            lobby.LastActiveTime = DateTime.UtcNow;
-        }
-
-        private void CompleteReadyTask(string lobbyId)
-        {
-            if (readyMap.TryRemove(lobbyId, out TaskCompletionSource<bool>? readyTask))
-            {
-                readyTask.TrySetResult(true);
-            }
-        }
-
         public LeaveLobbyResponse LeaveLobby(LeaveLobbyRequest request)
         {
             lock (userService.MembershipLock) return LeaveLobbyCore(request);
@@ -405,6 +228,11 @@ namespace Smart_Training_Server.Services.Lobby
 
         private LeaveLobbyResponse LeaveLobbyCore(LeaveLobbyRequest request)
         {
+            if (pendingJoins.TryGetValue(request.UserId, out var pending) && pending.LobbyId == request.LobbyId)
+            {
+                ReleasePendingJoin(pending);
+                return new() { Success = true, Message = "로비 입장 요청을 취소했습니다." };
+            }
             // 1. 사용자 존재 확인
             UserInfo? user = userService.FindById(request.UserId);
 
@@ -463,6 +291,8 @@ namespace Smart_Training_Server.Services.Lobby
             user.CurrentLobbyId = string.Empty;
             user.CurrentLobbyName = string.Empty;
 
+            if (lobby.IsCatalogLobby) StopIdleLobby(lobby);
+
             // 6. 마지막 활동 시간 갱신
             lobby.LastActiveTime = DateTime.UtcNow;
 
@@ -481,6 +311,7 @@ namespace Smart_Training_Server.Services.Lobby
 
         private bool DeleteLobby(LobbyInfo lobby)
         {
+            if (lobby.IsCatalogLobby) { StopIdleLobby(lobby); return false; }
             return lobbies.TryRemove(lobby.Id, out _);
         }
 
@@ -488,10 +319,12 @@ namespace Smart_Training_Server.Services.Lobby
         {
             lock (userService.MembershipLock)
             {
+                if (pendingJoins.TryGetValue(userId, out var pending)) ReleasePendingJoin(pending);
                 foreach (var lobby in lobbies.Values.ToArray())
                 {
                     if (!lobby.Users.TryRemove(userId, out _)) continue;
                     lobby.LastActiveTime = DateTime.UtcNow;
+                    if (lobby.IsCatalogLobby) StopIdleLobby(lobby);
                     if (lobby.Users.IsEmpty && lobby.Rooms.IsEmpty) DeleteLobby(lobby);
                 }
                 var user = userService.FindById(userId);
@@ -513,4 +346,6 @@ namespace Smart_Training_Server.Services.Lobby
             }
         }
     }
-}
+        }
+
+

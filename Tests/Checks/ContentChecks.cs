@@ -27,7 +27,10 @@ internal static class ContentChecks
         var rooms = new RoomService(lobbies, users, Options.Create(new RoomOptions { NameMinLength = 1, NameMaxLength = 20, MinUsers = 1, MaxUsers = 10 }));
         var user = users.Login(new LoginRequest { UserName = "content-user" }).User!;
         var first = lobbies.CreateLobby(new CreateLobbyRequest { LobbyName = "content-lobby" }).Lobby!;
-        Check(first.Contents.ContainsKey("sample-training") && first.IpAddress == "" && first.Port == 0, "lobby initializes contents without Unity server");
+        var metadata = System.Text.Json.JsonSerializer.SerializeToElement(first, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+        Check(first.Contents.ContainsKey("sample-training") && !metadata.TryGetProperty("ipAddress", out _) &&
+            !metadata.TryGetProperty("port", out _) && !metadata.TryGetProperty("state", out _),
+            "lobby initializes metadata without obsolete Unity server fields");
         Check((await lobbies.JoinLobby(new JoinLobbyRequest { UserId = user.Id, LobbyId = first.Id })).Success, "enter content lobby");
         var response = rooms.CreateRoom(new CreateRoomRequest { UserId = user.Id, LobbyId = first.Id, RoomName = "content-room", ContentId = "sample-training", MaxUsers = 2 });
         Check(response.Success && response.Room!.Content.Title == root.Title, "create room from automatically loaded content");
@@ -62,3 +65,4 @@ internal static class ContentChecks
         Check(fixedResponse.Success && fixedResponse.Lobby!.Contents.ContainsKey("restored"), "catalog correction allows retry");
     }
 }
+

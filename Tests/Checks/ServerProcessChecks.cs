@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Options;
 using Smart_Training_Server.Enum;
 using Smart_Training_Server.Models;
 using Smart_Training_Server.Options;
@@ -46,10 +46,13 @@ internal static class ServerProcessChecks
         Check(admission.Success && rooms.ConfirmConnection(room.Id, "active", a.Id, admission.AdmissionToken).Success, "retry establishes user connection");
         var bAdmission = await Join(b);
         Check(bAdmission.Success && manager.Launches == 3, "running server reused for another reservation");
+        room.IsRunning = true; room.PhaseRevision = 10;
         manager.Crash(room.Id);
         rooms.CheckServerProcesses();
         Check(room.Users.IsEmpty && room.ReservedUsers == 0 && a.CurrentRoomId == "" && b.PendingRoomId == "" && room.State == ServerState.Creating && room.ServerToken == "", "detect running crash and clean connected and reserved users");
         Check(a.CurrentLobbyId == lobby.Id && b.CurrentLobbyId == lobby.Id, "server crash preserves lobby membership");
+        Check(!room.IsRunning && room.PhaseRevision == 11 && string.IsNullOrEmpty(room.MasterUserId),
+            "process crash resets running phase and master with a new revision");
         Check(!rooms.ConfirmConnection(room.Id, "active", b.Id, bAdmission.AdmissionToken).Success, "old server cannot confirm after crash");
         rooms.CheckServerProcesses();
         var newWait = Join(a); var newToken = room.ServerToken;

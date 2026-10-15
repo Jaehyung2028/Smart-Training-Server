@@ -12,10 +12,12 @@ namespace Smart_Training_Server._Controllers
     public class LobbyController : ControllerBase
     {
         private readonly LobbyService lobbyService;
+        private readonly Smart_Training_Server.Services.Room.RoomService roomService;
 
-        public LobbyController(LobbyService lobbyService)
+        public LobbyController(LobbyService lobbyService, Smart_Training_Server.Services.Room.RoomService roomService)
         {
             this.lobbyService = lobbyService;
+            this.roomService = roomService;
         }
 
         [HttpPost("creat")]
@@ -36,7 +38,7 @@ namespace Smart_Training_Server._Controllers
         public async Task<ActionResult<JoinLobbyResponse>> JoinLobby(JoinLobbyRequest request)
         {
             request.UserId = GetAuthenticatedUserId();
-            JoinLobbyResponse response = await lobbyService.JoinLobby(request);
+            JoinLobbyResponse response = await lobbyService.JoinLobby(request, HttpContext.RequestAborted);
 
             if (!response.Success)
             {
@@ -82,6 +84,15 @@ namespace Smart_Training_Server._Controllers
             return contents == null
                 ? NotFound(Smart_Training_Server.Responses.Base.ApiErrorResponse.Create(404, HttpContext.TraceIdentifier, "로비를 찾을 수 없습니다."))
                 : Ok(contents);
+        }
+
+        [HttpGet("{lobbyId}/participants")]
+        public IActionResult GetParticipants(string lobbyId)
+        {
+            var result = roomService.GetLobbyParticipants(lobbyId, GetAuthenticatedUserId());
+            if (result.StatusCode == 200) return Ok(result.Participants);
+            var message = result.StatusCode == 404 ? "로비를 찾을 수 없습니다." : "현재 입장한 로비의 참가자만 조회할 수 있습니다.";
+            return StatusCode(result.StatusCode, Smart_Training_Server.Responses.Base.ApiErrorResponse.Create(result.StatusCode, HttpContext.TraceIdentifier, message));
         }
 
         private string GetAuthenticatedUserId() =>

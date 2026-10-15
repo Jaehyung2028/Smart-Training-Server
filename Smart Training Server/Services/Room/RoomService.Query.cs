@@ -42,6 +42,8 @@ public partial class RoomService
         AvailableSlots = Math.Max(0, room.MaxUsers - room.Users.Count - room.ReservedUsers),
         MasterUserId = room.MasterUserId,
         IsEntryLocked = room.IsEntryLocked,
+        HasPassword = room.HasPassword,
+        IsRunning = room.IsRunning,
         State = room.State,
         CreatedAt = room.CreatedAt
     };

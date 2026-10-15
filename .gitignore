@@ -24,3 +24,6 @@ appsettings.*.Local.json
 *.original
 Thumbs.db
 .DS_Store
+
+# Local operational history, temporary writes and corrupt-file copies
+/Smart Training Server/Data/operations-history.json*

@@ -9,6 +9,7 @@
         public string Title { get; set; } = string.Empty;
 
         public string? Path { get; set; }
+        public string? LobbyServerExecutablePath { get; set; }
 
         public List<ContentInfo> Children { get; set; } = new();
     }

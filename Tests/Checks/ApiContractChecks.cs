@@ -58,14 +58,25 @@ internal static class ApiContractChecks
             var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
             using var client = new HttpClient { BaseAddress = new Uri(address) };
             await Error(await client.PostAsJsonAsync("api/Lobby/create", new { lobbyName = "standard" }), HttpStatusCode.Unauthorized, "unauthorized");
+            await Error(await client.GetAsync("api/Lobby/missing/participants"), HttpStatusCode.Unauthorized, "unauthorized");
             await Error(await client.PostAsync("api/Auth/refresh", null), HttpStatusCode.Unauthorized, "unauthorized");
             var login = (await (await client.PostAsJsonAsync("api/Auth/login", new { userName = "contract-user" })).Content.ReadFromJsonAsync<LoginResponse>())!;
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login.AccessToken);
             var lobbyResponse = await client.PostAsJsonAsync("api/Lobby/create", new { lobbyName = "standard" });
+            using (var lobbyJson = JsonDocument.Parse(await lobbyResponse.Content.ReadAsStringAsync()))
+            {
+                var metadata = lobbyJson.RootElement.GetProperty("lobby");
+                Check(!metadata.TryGetProperty("ipAddress", out _) && !metadata.TryGetProperty("port", out _) &&
+                    !metadata.TryGetProperty("state", out _), "HTTP lobby creation omits removed dedicated-lobby fields");
+            }
             var lobby = (await lobbyResponse.Content.ReadFromJsonAsync<CreateLobbyResponse>())!.Lobby!;
             Check(lobbyResponse.StatusCode == HttpStatusCode.OK && lobby.Contents.ContainsKey("sample-training"), "standard lobby create route");
+            await Error(await client.GetAsync($"api/Lobby/{lobby.Id}/participants"), HttpStatusCode.Forbidden, "forbidden");
+            await Error(await client.GetAsync("api/Lobby/missing/participants"), HttpStatusCode.NotFound, "not_found");
             Check((await client.PostAsJsonAsync("api/Lobby/creat", new { lobbyName = "legacy" })).StatusCode == HttpStatusCode.OK, "legacy lobby route remains usable");
             Check((await client.PostAsJsonAsync("api/Lobby/join", new { lobbyId = lobby.Id })).StatusCode == HttpStatusCode.OK, "full flow lobby entry without userId");
+            var participants = (await client.GetFromJsonAsync<LobbyParticipantResponse[]>($"api/Lobby/{lobby.Id}/participants"))!;
+            Check(participants.Length == 1 && participants[0].UserId == login.User!.Id && participants[0].ConnectionState == "lobby", "HTTP participant list is scoped to current lobby and has documented state");
             var createdHttp = await client.PostAsJsonAsync("api/Room/create", new { lobbyId = lobby.Id, roomName = "standard-room", contentId = "sample-training", maxUsers = 2 });
             var room = (await createdHttp.Content.ReadFromJsonAsync<CreateRoomResponse>())!.Room!;
             Check(createdHttp.StatusCode == HttpStatusCode.OK, "standard room create route");
@@ -92,3 +103,4 @@ internal static class ApiContractChecks
         finally { await app.StopAsync(); }
     }
 }
+

@@ -2,6 +2,7 @@
 {
     public class UserInfo
     {
+        public string PendingLobbyId { get; set; } = string.Empty;
         public string PendingRoomId { get; set; } = string.Empty;
 
         public int LobbyIndex { get; set; } = -1;

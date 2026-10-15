@@ -1,0 +1,22 @@
+MULTIPROCESS PASS: local schedule is persisted
+MULTIPROCESS PASS: room and lobby-only clients receive notice while remaining connected
+MULTIPROCESS PASS: scheduled lobby rejects fresh admission without reservation
+MULTIPROCESS PASS: stale operator cancellation is rejected
+MULTIPROCESS PASS: past deadline is rejected
+MULTIPROCESS PASS: ordinary user request cannot cancel operations schedule
+MULTIPROCESS PASS: cross-origin cancellation is rejected
+MULTIPROCESS PASS: cancellation retains worker identities and active room
+MULTIPROCESS PASS: cancellation reopens admission
+MULTIPROCESS PASS: room participant returns to lobby list without losing login or offering stale reconnect
+MULTIPROCESS PASS: lobby-only participant automatically returns to list
+MULTIPROCESS PASS: scheduled deadline transitions into unified maintenance
+MULTIPROCESS PASS: deadline empties target membership and stops all target workers
+MULTIPROCESS PASS: other lobby stays connected to same worker
+MULTIPROCESS PASS: completed closure stays blocked until explicit release
+MULTIPROCESS PASS: release permits on-demand restart
+MULTIPROCESS PASS: one resume removes both admission block and deadline
+MULTIPROCESS PASS: ASP.NET restart restores scheduled deadline without launching worker
+MULTIPROCESS PASS: restored deadline completes without users or worker resurrection
+MULTIPROCESS PASS: completed block persists across another restart
+MULTIPROCESS PASS: planned closures record reason and time once without false failures
+SHUTDOWN COMPLETE: C:\Users\yafa7\.codex\.chatgpt-projects\g-p-6ac792e6ddec81918d83905c0cb6d6be\work\unified-evidence\20261015-013726

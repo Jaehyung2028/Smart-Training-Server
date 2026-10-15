@@ -12,6 +12,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Remove="Data\operations-history.json*" />
+    <None Remove="Data\operations-history.json*" />
     <Content Update="Contents\catalog.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Update="RoomServer\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Update="RoomServer\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

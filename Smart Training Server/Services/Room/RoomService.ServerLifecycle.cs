@@ -36,8 +36,12 @@ public partial class RoomService
         room.Users.Clear();
         room.MasterUserId = string.Empty;
         room.IsEntryLocked = false;
+        room.IsRunning = false;
+        room.PhaseRevision++;
         if (readyMap.TryRemove(room.Id, out var waiting)) waiting.TrySetResult(false);
         processManager.Stop(room.Id);
+        operations.Record("room", room.Id, room.LobbyId, room.Name,
+            reason is "입장 취소" or "방장이 방을 닫았습니다." or "로비 종료 예약 실행" ? "stopped" : "failed", reason);
         Console.WriteLine($"[Room] 서버 상태 초기화 ({room.Id}): {reason}");
     }
 }

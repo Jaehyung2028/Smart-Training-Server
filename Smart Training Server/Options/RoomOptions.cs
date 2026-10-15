@@ -1,4 +1,4 @@
-﻿namespace Smart_Training_Server.Options
+namespace Smart_Training_Server.Options
 {
     public class RoomOptions
     {
@@ -17,8 +17,8 @@
 
         public int NameMaxLength { get; set; }
 
-        public int PasswordMaxLength { get; set; }
 
         public bool AllowDuplicateName { get; set; }
     }
 }
+

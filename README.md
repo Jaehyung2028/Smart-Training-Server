@@ -27,7 +27,7 @@ flowchart LR
 | 영역 | 구현 내용 | 주요 코드 |
 |---|---|---|
 | 인증 | 닉네임 로그인, 불투명 Bearer 토큰, 갱신·만료·로그아웃 처리 | `Services/Auth/UserService.Session.cs`, `UserTokenAuthenticationHandler.cs` |
-| 로비·방 | 생성·조회·입장·퇴장, 콘텐츠 카탈로그 메타데이터 조회, 정원 관리 | `Services/Lobby`, `Services/Room/RoomService.cs` |
+| 로비·방 | catalog.json 기반 로비 목록, 로비 입장·퇴장, 로비 안의 방 생성·조회·정원 관리 | `Services/Lobby`, `Services/Room/RoomService.cs` |
 | 입장 예약 | 예약 토큰·만료 관리, 동시 예약 정원 확인, 실제 연결 시 참가 확정 | `RoomService.Admission.cs`, `Hubs/RoomHub.cs` |
 | 전용 서버 | 방별 프로세스 실행, 등록 대기, 실행 실패·종료 감시 및 상태 정리 | `Helper/ProcessHelper.cs`, `RoomService.ServerLifecycle.cs` |
 | 방장 | 표시용 정보 제공, 퇴장 시 자동 위임, 연결된 참가자에게 수동 위임 | `RoomService.Master.cs` |
@@ -37,10 +37,21 @@ flowchart LR
 
 닉네임 기반 세션 인증입니다. 계정 비밀번호 로그인이나 JWT 인증으로 설명하지 않습니다. 현재 사용자·로비·방 상태는 메모리에 저장되며 서버 재시작 시 유지되지 않습니다.
 
+## 추가 구현 기능
+
+- 카탈로그 콘텐츠별 고정 로비와 온디맨드 Unity 로비 서버 실행·종료
+- 방 이름·정원 변경, 비밀번호 설정·변경·해제, 방 닫기
+- 전원 준비 확인에 따른 시작·대기 복귀와 진행 중 입장·설정 제한
+- 로비·방 채팅, 참가자 조회, 방·인원·운영 상태의 실시간 알림
+- 로컬 운영 페이지, 점검과 종료 예정 전환, 상태 조회 및 운영 이력 기록
+- 동시 요청·입장 취소·프로세스 종료가 겹치는 상황의 상태 정리와 검증
+
+콘텐츠 카탈로그에는 예시 세 개가 있으며 실제 훈련 콘텐츠 구현을 뜻하지 않습니다. 로비 목록이 있다는 이유만으로 Unity 서버를 모두 실행하지 않고, 입장 요청과 참가 상태에 따라 실행 수명을 관리합니다.
+
 ## 접속 흐름
 
 1. 클라이언트가 로그인하고 Bearer 토큰을 받습니다.
-2. 로비에 입장한 뒤 `POST /api/Room/join`으로 방 접속을 예약합니다.
+2. 카탈로그 로비에 입장을 요청하면 필요한 Unity 로비 서버를 실행합니다. 로비 안에서 방을 생성·선택한 뒤 `POST /api/Room/join`으로 접속을 예약합니다.
 3. 필요한 경우 API가 전용 방 서버를 실행하고 등록을 기다립니다.
 4. 클라이언트가 예약 토큰으로 Unity 전용 서버에 접속합니다.
 5. 전용 서버가 `RoomHub.ValidateConnection`으로 예약을 검증하고 `ConfirmConnection`으로 참가를 확정합니다.
@@ -54,7 +65,7 @@ flowchart LR
 |---|---|
 | Unity 에디터 종료 후 닉네임이 사용 중으로 남음 | 정상 로그아웃 없이 Play가 종료되는 경로를 고려해 클라이언트 종료 정리와 서버 세션 만료 정리를 함께 적용 |
 | 입장 예약만으로 실제 참가자가 표시됨 | 예약 인원과 연결 인원을 분리하고 전용 서버의 연결 확인 후 참가 확정 |
-| 전용 서버가 HTTPS 리디렉션으로 등록에 실패 | 로컬 루프백 `RoomHub` 연결에 한해 리디렉션 예외 적용. REST 및 원격 접속의 정책은 유지 |
+| 전용 서버가 HTTPS 리디렉션으로 등록에 실패 | 개발 실행을 `ListenAnyIP(Server:Port)`의 HTTP 단일 포트로 정리하고 클라이언트·전용 서버의 API 주소를 통일 |
 | 방장 퇴장으로 관리 권한이 사라짐 | 실제 연결된 참가자의 방 인덱스를 기준으로 자동 위임하고 Unity 플레이어에 동기화 |
 | 강퇴 요청 후 인원을 미리 제거할 위험 | 현재 연결 토큰으로 종료 요청을 전달하고 실제 연결 종료 후 참가 상태 정리 |
 | 연결 끊김 후 재접속 시 중복 상태 발생 가능 | 이전 접속 정리 확인 후 새 예약으로 재입장. 기존 예약 토큰을 재사용하지 않음 |
@@ -65,22 +76,23 @@ Windows에 .NET 8 런타임과 .NET SDK를 설치합니다. 솔루션 파일(`.s
 
 ### 1. Unity 전용 서버 준비
 
-[플랫폼 저장소](https://github.com/Jaehyung2028/Smart-Training-Platform)의 Unity 프로젝트를 열고 Windows Dedicated Server 모듈을 설치합니다. 메뉴 `Smart Training > Build Windows Room Server`로 빌드합니다.
+[플랫폼 저장소](https://github.com/Jaehyung2028/Smart-Training-Platform)의 Unity 프로젝트를 열고 Windows Dedicated Server 모듈을 설치합니다. 메뉴 `Smart Training > Build > Build Windows Test Bundle`로 클라이언트와 전용 서버를 함께 빌드하거나, 기존 `Smart Training > Build Windows Room Server` 메뉴를 사용합니다.
 
-생성된 `Builds/RoomServer` 폴더의 **전체 내용**을 이 저장소의 `Smart Training Server/RoomServer`에 복사합니다. 실행 파일 하나만 복사하면 실행되지 않습니다. 실행 파일 이름은 `Smart Training Room.exe`입니다.
+통합 빌드의 `Builds/TestBundles/날짜-고유번호/RoomServer` 또는 개별 빌드의 `Builds/RoomServer` 폴더의 **전체 내용**을 이 저장소의 `Smart Training Server/RoomServer`에 복사합니다. 실행 파일 하나만 복사하면 실행되지 않습니다. 실행 파일 이름은 `Smart Training Room.exe`입니다.
 
 Unity 빌드 파일은 Git에서 제외합니다. 저장소를 처음 내려받은 경우 위 과정이 필요합니다. API만 실행하는 것은 가능하지만 전용 서버가 없으면 실제 방 접속은 실패합니다.
+
+catalog.json의 lobbyServerExecutablePath가 지정되어 있으면 공통 Lobby:ServerExecutablePath보다 우선합니다. 새 실행 파일을 별도 위치에서 사용할 때는 카탈로그의 경로와 Room:ServerExecutablePath도 맞춰주세요.
 
 ### 2. API 실행
 
 저장소 루트에서 실행합니다.
 
 ```powershell
-dotnet dev-certs https --trust
-dotnet run --project "Smart Training Server/Smart Training Server.csproj" --launch-profile https
+dotnet run --project "Smart Training Server/Smart Training Server.csproj" --launch-profile http
 ```
 
-- Swagger: `https://localhost:7087/swagger/index.html`
+- Swagger: `http://localhost:5229/swagger/index.html`
 - HTTP 개발 주소: `http://localhost:5229`
 - 상태 확인: `GET /api/health`
 - 기본 전용 서버 API 주소: `http://127.0.0.1:5229`
@@ -94,7 +106,7 @@ dotnet run --project "Smart Training Server/Smart Training Server.csproj" --laun
 | `POST /api/Auth/login`, `/refresh`, `/logout` | 로그인·갱신·로그아웃 |
 | `GET /api/Auth/me` | 현재 사용자 상태 |
 | `GET /api/Lobby` | 로비 목록 |
-| `POST /api/Lobby/create`, `/join`, `/leave` | 로비 관리 |
+| `POST /api/Lobby/join`, `/leave` | 카탈로그 로비 입장·퇴장 |
 | `GET /api/Lobby/{lobbyId}/contents` | 콘텐츠 메타데이터 |
 | `GET /api/Lobby/{lobbyId}/rooms` | 방 목록 |
 | `POST /api/Room/create`, `/join`, `/leave` | 방 생성·예약·퇴장 |
@@ -115,7 +127,7 @@ dotnet run --project Tests/Checks/Checks.csproj
 
 Unity 실제 멀티 접속 검증 코드는 플랫폼 저장소의 `RoomServerEndToEndTest.cs`에 있습니다. 개별 검증 항목 수에는 상태 동기화를 확인하는 반복 항목도 포함되므로 독립적인 테스트 케이스 수와 같지는 않습니다.
 
-2026-10-13 기준 서버 검증 **286개 항목**과 Unity 실제 멀티 검증 **114개 항목**을 통과했습니다. 실행 결과를 기준으로 기록하며, 두 수치를 합쳐 독립 테스트 수로 표시하지 않습니다.
+2026-10-15 서버 콘솔 검증 **639개 항목**을 통과했습니다. 같은 날 새 Unity 클라이언트·로비 서버·방 서버를 사용하는 멀티 흐름은 **33개 항목**을 확인했습니다. 각각의 실행 결과이며 합쳐서 독립 테스트 수로 표시하지 않습니다.
 
 ## 앞으로 개발할 부분
 

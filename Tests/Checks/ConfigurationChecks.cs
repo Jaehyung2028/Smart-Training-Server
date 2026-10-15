@@ -37,9 +37,9 @@ internal static class ConfigurationChecks
             ("Auth:AccessTokenLifetimeMinutes", "0"), ("Auth:SessionGraceMinutes", "61"),
             ("Lobby:MaxCount", "0"), ("Lobby:NameMaxLength", "1"),
             ("Room:MinUsers", "0"), ("Room:MaxUsers", "0"), ("Room:NameMaxLength", "1"),
-            ("Room:PasswordMaxLength", "-1"), ("Room:ServerReadyTimeoutSeconds", "301"),
+            ("Room:ServerReadyTimeoutSeconds", "301"),
             ("Room:ServerExecutablePath", " "), ("Room:AdvertisedAddress", "https://localhost"),
-            ("Room:AdvertisedAddress", "localhost:7777"), ("Room:AdvertisedAddress", " localhost ")
+            ("Room:AdvertisedAddress", "localhost:7777"), ("Room:AdvertisedAddress", " localhost "), ("Room:AdvertisedAddress", "0.0.0.0"), ("Room:AdvertisedAddress", "::")
             , ("Room:ServerApiBaseUrl", "ftp://localhost"), ("Room:ServerApiBaseUrl", "http://user:secret@localhost"),
             ("Room:ServerApiBaseUrl", "http://localhost?token=secret")
         })
@@ -50,3 +50,5 @@ internal static class ConfigurationChecks
         }
     }
 }
+
+

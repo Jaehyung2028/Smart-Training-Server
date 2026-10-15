@@ -41,7 +41,8 @@ public partial class RoomService
             var room = FindById(roomId);
             if (room == null)
                 return new() { Success = false, Message = "방을 찾을 수 없습니다." };
-            return new() { Success = true, MasterUserId = room.MasterUserId, IsEntryLocked = room.IsEntryLocked };
+            return new() { Success = true, MasterUserId = room.MasterUserId, IsEntryLocked = room.IsEntryLocked,
+                RoomName = room.Name, MaxUsers = room.MaxUsers, IsRunning = room.IsRunning, PhaseRevision = room.PhaseRevision };
         }
     }
 }

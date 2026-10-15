@@ -6,6 +6,13 @@ namespace Smart_Training_Server.Models
     public class RoomInfo
     {
         [System.Text.Json.Serialization.JsonIgnore]
+        public byte[] PasswordSalt { get; set; } = Array.Empty<byte>();
+        [System.Text.Json.Serialization.JsonIgnore]
+        public byte[] PasswordHash { get; set; } = Array.Empty<byte>();
+        public bool HasPassword => PasswordHash.Length > 0;
+        [System.Text.Json.Serialization.JsonIgnore]
+        public bool IsClosing { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
         public string CreatorUserId { get; set; } = string.Empty;
 
         [System.Text.Json.Serialization.JsonIgnore]
@@ -13,6 +20,8 @@ namespace Smart_Training_Server.Models
 
         public int ReservedUsers { get; set; }
         public bool IsEntryLocked { get; set; }
+        public bool IsRunning { get; set; }
+        public long PhaseRevision { get; set; }
 
         public ContentInfo Content { get; set; } = new();
 

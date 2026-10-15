@@ -9,18 +9,19 @@ public static class ProcessHelper
     private static readonly object processGate = new();
 
     public static void LaunchUnityServer(string id, int port, string executablePath, string? serverToken = null,
-        string apiBaseUrl = "http://127.0.0.1:5229")
+        string apiBaseUrl = "http://127.0.0.1:5229", bool lobbyMode = false)
     {
+        string processKey = lobbyMode ? "lobby:" + id : id;
         lock (processGate)
         {
             try
             {
                 string fullPath = Path.GetFullPath(executablePath, AppContext.BaseDirectory);
                 if (!File.Exists(fullPath)) throw new FileNotFoundException("Unity 서버 실행 파일을 찾을 수 없습니다.", fullPath);
-                if (processes.TryGetValue(id, out var previous))
+                if (processes.TryGetValue(processKey, out var previous))
                 {
                     if (!previous.HasExited) throw new InvalidOperationException("해당 방의 서버가 이미 실행 중입니다.");
-                    processes.TryRemove(id, out _);
+                    processes.TryRemove(processKey, out _);
                     previous.Dispose();
                 }
                 var start = new ProcessStartInfo
@@ -31,21 +32,22 @@ public static class ProcessHelper
                     CreateNoWindow = true
                 };
                 start.ArgumentList.Add("-Id"); start.ArgumentList.Add(id);
+                if (lobbyMode) start.ArgumentList.Add("-lobby");
                 start.ArgumentList.Add("-port"); start.ArgumentList.Add(port.ToString());
                 start.ArgumentList.Add("-batchmode"); start.ArgumentList.Add("-nographics");
                 start.ArgumentList.Add("-apiUrl"); start.ArgumentList.Add(apiBaseUrl);
-                start.ArgumentList.Add("-logFile"); start.ArgumentList.Add(Path.Combine(start.WorkingDirectory, $"room-{id}.log"));
+                start.ArgumentList.Add("-logFile"); start.ArgumentList.Add(Path.Combine(start.WorkingDirectory, $"{(lobbyMode ? "lobby" : "room")}-{id}.log"));
                 if (serverToken != null)
                 {
                     // Unity logs command-line arguments. Keep registration secrets out of them.
                     start.Environment["SMART_TRAINING_SERVER_TOKEN"] = serverToken;
                 }
                 var process = Process.Start(start) ?? throw new InvalidOperationException("프로세스를 시작하지 못했습니다.");
-                processes[id] = process;
+                processes[processKey] = process;
                 try { ProcessJobHelper.AddProcess(process); }
                 catch
                 {
-                    KillProcessById(id);
+                    KillProcessById(processKey);
                     throw;
                 }
                 Console.WriteLine($"[서버] 실행 완료: {fullPath} (포트 {port}, PID {process.Id})");
@@ -61,6 +63,13 @@ public static class ProcessHelper
     public static Process? GetProcessById(string id)
     {
         lock (processGate) return processes.GetValueOrDefault(id);
+    }
+
+    public static (int? Id, bool Running) GetProcessStatus(string id)
+    {
+        lock (processGate)
+            return processes.TryGetValue(id, out var process) && !process.HasExited
+                ? (process.Id, true) : (null, false);
     }
 
     public static bool IsProcessRunning(string id)

@@ -12,6 +12,7 @@ public partial class UserService
             return user == null ? null : new CurrentUserResponse
             {
                 Id = user.Id,
+                PendingLobbyId = user.PendingLobbyId,
                 Name = user.Name,
                 CurrentLobbyId = user.CurrentLobbyId,
                 CurrentLobbyName = user.CurrentLobbyName,

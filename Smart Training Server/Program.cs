@@ -7,6 +7,9 @@ using Smart_Training_Server.Services.Room;
 using Smart_Training_Server.Services.Api;
 
 var builder = WebApplication.CreateBuilder(args);
+int apiPort = builder.Configuration.GetValue<int>("Server:Port", 5229);
+if (apiPort is < 1 or > 65535) throw new InvalidOperationException("Server:Port는 1~65535이어야 합니다.");
+builder.WebHost.ConfigureKestrel(options => options.ListenAnyIP(apiPort));
 
 // Add services to the container.
 
@@ -24,13 +27,31 @@ builder.Services.AddSingleton<UserService>();
 builder.Services.AddSingleton<UserLifecycleService>();
 builder.Services.AddHostedService<UserSessionCleanupService>();
 builder.Services.AddSingleton<LobbyService>();
+builder.Services.AddSingleton<Smart_Training_Server.Services.Operations.LobbyShutdownService>();
+builder.Services.AddHostedService<Smart_Training_Server.Services.Operations.LobbyShutdownWorker>();
+builder.Services.AddSingleton<Smart_Training_Server.Services.Operations.ServerOperationsRegistry>(services =>
+{
+    var settings = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<OperationsOptions>>().Value;
+    string? path = settings.PersistHistory && builder.Configuration["SMART_TRAINING_SERVER_PROBE"] != "1"
+        ? Path.GetFullPath(settings.HistoryPath, builder.Environment.ContentRootPath) : null;
+    return new(path, services.GetRequiredService<ILogger<Smart_Training_Server.Services.Operations.ServerOperationsRegistry>>());
+});
+builder.Services.AddSingleton<Smart_Training_Server.Services.Operations.ServerOperationsService>();
+builder.Services.AddHostedService<Smart_Training_Server.Services.Operations.OperationsHistoryWriter>();
+builder.Services.AddSingleton<Smart_Training_Server.Services.Operations.IOperationsBrowserOpener, Smart_Training_Server.Services.Operations.OperationsBrowserOpener>();
+builder.Services.AddHostedService<Smart_Training_Server.Services.Operations.OperationsBrowserLauncher>();
+builder.Services.AddSingleton<LobbyRoomUpdates>();
+builder.Services.AddHostedService<LobbyRoomUpdatesService>();
 builder.Services.AddSingleton<RoomService>();
 builder.Services.AddSingleton<IRoomServerProcessManager>(services => new RoomServerProcessManager(
     services.GetRequiredService<Microsoft.Extensions.Options.IOptions<RoomOptions>>().Value.ServerApiBaseUrl));
 builder.Services.AddHostedService<RoomServerMonitorService>();
 builder.Services.AddHostedService<RoomReservationCleanupService>();
-builder.Services.AddSingleton<ContentService>();
-builder.Services.AddSingleton<ServerConnectionService>();
+builder.Services.AddSingleton<ContentService>(services => new ContentService(builder.Configuration["Contents:Directory"], services.GetRequiredService<ILogger<ContentService>>()));
+builder.Services.AddSingleton<ILobbyServerProcessManager>(services => new LobbyServerProcessManager(
+    services.GetRequiredService<Microsoft.Extensions.Options.IOptions<RoomOptions>>().Value.ServerApiBaseUrl));
+builder.Services.AddHostedService<LobbyServerMonitorService>();
+builder.Services.AddSingleton<RoomServerConnectionRegistry>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -47,11 +68,13 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
+app.Services.GetRequiredService<LobbyService>().InitializeCatalogLobbies();
 app.UseTrainingApiErrors();
 
-app.MapHub<LobbyHub>("/LobbyHub");
+app.MapHub<LobbyUpdatesHub>("/LobbyUpdatesHub");
 
 app.MapHub<RoomHub>("/RoomHub");
+app.MapHub<LobbyServerHub>("/LobbyServerHub");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -60,17 +83,16 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// A room process on this machine connects through loopback HTTP. Redirecting its
-// WebSocket handshake to the development HTTPS certificate prevents registration.
-// Keep HTTPS redirection for other requests and for remote room-server connections.
-app.UseWhen(context => !(context.Request.Path.StartsWithSegments("/RoomHub") &&
-    context.Connection.RemoteIpAddress is { } address && System.Net.IPAddress.IsLoopback(address)),
-    branch => branch.UseHttpsRedirection());
-
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
-app.Lifetime.ApplicationStopping.Register(Smart_Training_Server.Helper.ProcessHelper.KillAll);
+app.Lifetime.ApplicationStopping.Register(() =>
+{
+    try { app.Services.GetRequiredService<Smart_Training_Server.Services.Operations.ServerOperationsRegistry>().CompleteSession(); }
+    finally { Smart_Training_Server.Helper.ProcessHelper.KillAll(); }
+});
 app.Run();
+
+

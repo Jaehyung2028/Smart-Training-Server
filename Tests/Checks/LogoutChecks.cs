@@ -95,6 +95,18 @@ internal static class LogoutChecks
                 "restore initial master after access checks");
             client.DefaultRequestHeaders.Authorization = null;
             var kickBody = new { lobbyId = lobby.Id, roomId = room.Id, targetUserId = second.User.Id, userId = first.User.Id };
+            var settingsBody = new { lobbyId = lobby.Id, roomId = room.Id, roomName = "settings-http", maxUsers = room.MaxUsers, userId = first.User.Id };
+            Check((await client.PostAsJsonAsync("api/Room/settings", settingsBody)).StatusCode == HttpStatusCode.Unauthorized,
+                "settings endpoint requires authentication");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", second.AccessToken);
+            Check((await client.PostAsJsonAsync("api/Room/settings", settingsBody)).StatusCode == HttpStatusCode.BadRequest,
+                "settings endpoint ignores impersonated body user ID");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", first.AccessToken);
+            Check((await client.PostAsJsonAsync("api/Room/settings", new { lobbyId = lobby.Id, roomId = room.Id, roomName = "missing-capacity" })).StatusCode == HttpStatusCode.BadRequest,
+                "settings endpoint rejects omitted capacity");
+            Check((await client.PostAsJsonAsync("api/Room/settings", settingsBody)).StatusCode == HttpStatusCode.OK &&
+                second.User.CurrentRoomName == "settings-http", "settings endpoint updates authenticated master room and participant names");
+            client.DefaultRequestHeaders.Authorization = null;
             Check((await client.PostAsJsonAsync("api/Room/kick", kickBody)).StatusCode == HttpStatusCode.Unauthorized,
                 "kick requires authenticated token");
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", second.AccessToken);

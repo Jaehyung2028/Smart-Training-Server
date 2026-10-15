@@ -1,0 +1,5 @@
+2026-10-15
+Server console checks: 639 PASS entries; process exit code 0.
+Source was copied into an isolated workspace; ProcessFixture was built before checks.
+Commands: dotnet build Tests/ProcessFixture/ProcessFixture.csproj; dotnet run --project Tests/Checks/Checks.csproj.
+Unity test bundle integration: 33 passed; separate run, not an independent-test total.

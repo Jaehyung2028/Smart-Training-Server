@@ -17,12 +17,13 @@ public partial class RoomService
     private static string NewToken() => Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
     private static JoinRoomResponse JoinError(string message) => new() { Success = false, Message = message };
 
-    public async Task<JoinRoomResponse> JoinRoom(JoinRoomRequest request)
+    public async Task<JoinRoomResponse> JoinRoom(JoinRoomRequest request, CancellationToken cancellationToken = default)
     {
         RoomAdmission admission;
         RoomInfo room;
         lock (userService.MembershipLock)
         {
+            if (cancellationToken.IsCancellationRequested) return JoinError("입장을 취소했습니다.");
             ExpireReservations();
             var user = userService.FindById(request.UserId);
             var lobby = lobbyService.FindById(request.LobbyId);
@@ -30,7 +31,10 @@ public partial class RoomService
             if (user == null || lobby == null || found == null)
                 return JoinError("사용자, 로비 또는 방을 찾을 수 없습니다.");
             room = found;
+            if (room.IsClosing) return JoinError("방장이 방을 닫고 있습니다.");
+            if (!RoomPassword.Matches(room, request.Password)) return JoinError("방 비밀번호가 올바르지 않습니다.");
             if (user.CurrentLobbyId != lobby.Id) return JoinError("해당 로비에 먼저 입장해주세요.");
+            if (room.IsRunning) return JoinError("진행 중인 방에는 입장할 수 없습니다.");
             if (room.IsEntryLocked) return JoinError("방장이 새 참가자의 입장을 잠갔습니다.");
             if (user.CurrentRoomId.Length != 0 || user.PendingRoomId.Length != 0)
                 return JoinError("이미 방에 입장했거나 입장을 예약했습니다.");
@@ -48,7 +52,7 @@ public partial class RoomService
         }
 
         bool ready;
-        try { ready = await EnsureRoomServer(room); }
+        try { ready = await EnsureRoomServer(room).WaitAsync(cancellationToken); }
         catch { ready = false; }
         lock (userService.MembershipLock)
         {
@@ -57,6 +61,14 @@ public partial class RoomService
             {
                 StopUnusedServer(room);
                 return JoinError("입장 예약이 취소되거나 만료되었습니다.");
+            }
+            if (cancellationToken.IsCancellationRequested)
+            {
+                RemoveReservation(admission);
+                // A shared launch must continue for other reservations. Only stop an unused launch.
+                if (room.State == ServerState.Starting && room.Users.IsEmpty && room.ReservedUsers == 0)
+                    ResetRoomServer(room, "입장 취소");
+                return JoinError("입장을 취소했습니다.");
             }
             if (!ready || room.State != ServerState.Running || FindById(room.Id) != room)
             {
@@ -100,6 +112,7 @@ public partial class RoomService
             if (user.CurrentRoomId == roomId && connectedTokens.GetValueOrDefault(userId) == admissionToken)
                 return Participant(user, "이미 접속이 확인되었습니다.");
             if (room.IsEntryLocked) return Result(false, "방장이 새 참가자의 입장을 잠갔습니다.");
+            if (room.IsRunning) return Result(false, "진행 중인 방에는 입장할 수 없습니다.");
             if (!reservations.TryGetValue(userId, out var admission) || admission.RoomId != roomId || admission.Token != admissionToken)
                 return Result(false, "유효한 입장 예약이 없습니다.");
             if (user.CurrentLobbyId != room.LobbyId || user.CurrentRoomId.Length != 0)
@@ -130,7 +143,7 @@ public partial class RoomService
             ExpireReservations();
             var user = userService.FindById(userId);
             var room = FindById(roomId);
-            bool valid = IsRegisteredServer(roomId, connectionId) && room?.State == ServerState.Running && !room.IsEntryLocked &&
+            bool valid = IsRegisteredServer(roomId, connectionId) && room?.State == ServerState.Running && !room.IsEntryLocked && !room.IsRunning &&
                 user != null && user.CurrentLobbyId == room.LobbyId && user.CurrentRoomId.Length == 0 &&
                 reservations.TryGetValue(userId, out var admission) && admission.RoomId == roomId && admission.Token == admissionToken;
             return Result(valid, valid ? "유효한 예약입니다." : "유효한 입장 예약이 없습니다.");
@@ -193,6 +206,7 @@ public partial class RoomService
             serverConnections.Remove(room.Id);
             room.ServerToken = string.Empty;
             processManager.Stop(room.Id);
+            operations.Record("room", room.Id, room.LobbyId, room.Name, "stopped", "접속·예약 인원 없음");
             room.State = ServerState.Creating;
         }
     }

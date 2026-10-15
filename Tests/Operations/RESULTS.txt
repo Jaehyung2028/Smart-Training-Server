@@ -1,0 +1,16 @@
+MULTIPROCESS PASS: local operations API reports three idle catalog lobbies without launching workers
+MULTIPROCESS PASS: local dashboard is served with automatic refresh and no caching
+MULTIPROCESS PASS: nonlocal Host cannot read operations over loopback connection
+MULTIPROCESS PASS: cross-origin browser request is rejected over real HTTP
+MULTIPROCESS PASS: live lobby row matches actual worker PID readiness and membership
+MULTIPROCESS PASS: unoccupied room appears without a process start record
+MULTIPROCESS PASS: operations room count and PID match actual Netcode participant and worker
+MULTIPROCESS PASS: operations snapshot distinguishes Netcode reservation from confirmed connection
+MULTIPROCESS PASS: operations JSON excludes user authentication and admission tokens and participant identities
+MULTIPROCESS PASS: status reads preserve admission and event history
+MULTIPROCESS PASS: unexpected worker shutdown records failure and stop time
+MULTIPROCESS PASS: successful restart increments attempts and preserves last failure
+MULTIPROCESS PASS: lobby restart records its own failure while keeping room worker unchanged
+MULTIPROCESS PASS: deleted room retains its historical failure and shutdown record
+MULTIPROCESS PASS: final operations snapshot lists three empty lobbies and no active workers
+OPERATIONS COMPLETE: C:\Users\yafa7\.codex\.chatgpt-projects\g-p-6ac792e6ddec81918d83905c0cb6d6be\work\operations-evidence\20261015-003037

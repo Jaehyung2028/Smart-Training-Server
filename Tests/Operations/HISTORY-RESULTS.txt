@@ -1,0 +1,13 @@
+MULTIPROCESS PASS: production host enables isolated persistent history with initially empty records
+MULTIPROCESS PASS: real lobby startup is reflected in live operations
+MULTIPROCESS PASS: background writer saves actual readiness without a shutdown
+MULTIPROCESS PASS: persisted operational history excludes authentication and user identity
+MULTIPROCESS PASS: restart restores historical lifecycle without starting old lobby or restoring old users
+MULTIPROCESS PASS: abruptly stopped host produces explicit prior-session interruption record
+MULTIPROCESS PASS: prior owned Unity worker does not remain after forced API termination
+MULTIPROCESS PASS: fresh join increments persisted attempts and preserves previous failure
+MULTIPROCESS PASS: stopped history survives another restart without a false additional crash
+MULTIPROCESS PASS: operations page exposes persistence status and last saved time
+MULTIPROCESS PASS: corrupt history is preserved and host still starts with current catalog
+MULTIPROCESS PASS: new valid history is written after corrupt-file recovery
+OPERATIONS HISTORY COMPLETE: C:\Users\yafa7\.codex\.chatgpt-projects\g-p-6ac792e6ddec81918d83905c0cb6d6be\work\history-restart-evidence\20261015-002840

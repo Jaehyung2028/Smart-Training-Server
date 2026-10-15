@@ -1,0 +1,19 @@
+MULTIPROCESS PASS: local operator enables and persists maintenance
+MULTIPROCESS PASS: maintenance preserves existing lobby and room worker identities and lifecycle
+MULTIPROCESS PASS: outsider Unity lobby list automatically displays maintenance and reason
+MULTIPROCESS PASS: server rejects new admission without pending reservation even when client bypasses disabled button
+MULTIPROCESS PASS: another catalog lobby remains open for admission
+MULTIPROCESS PASS: existing room still supports ready and running state during maintenance
+MULTIPROCESS PASS: duplicate operator request does not repeat state change or event
+MULTIPROCESS PASS: stale revision cannot undo current maintenance
+MULTIPROCESS PASS: operator must supply meaningful reason
+MULTIPROCESS PASS: ordinary authenticated API request cannot mutate maintenance without management header
+MULTIPROCESS PASS: cross-origin management mutation is rejected
+MULTIPROCESS PASS: release permits previously blocked client to join original room without replacing server
+MULTIPROCESS PASS: existing lobby member can reconnect to room during maintenance
+MULTIPROCESS PASS: last departure stops worker while keeping maintenance enabled
+MULTIPROCESS PASS: actual ASP.NET restart restores maintenance without launching a worker
+MULTIPROCESS PASS: restored maintenance rejects new user without demand or process launch
+MULTIPROCESS PASS: operator can release restored mode and start normal on-demand admission
+MULTIPROCESS PASS: maintenance changes retain time and reason across host restart
+MAINTENANCE COMPLETE: C:\Users\yafa7\.codex\.chatgpt-projects\g-p-6ac792e6ddec81918d83905c0cb6d6be\work\maintenance-evidence\20261015-005546

@@ -1,19 +1,14 @@
-﻿using Smart_Training_Server.Enum;
 using System.Collections.Concurrent;
 
 namespace Smart_Training_Server.Models
 {
     public class LobbyInfo
     {
+        [System.Text.Json.Serialization.JsonIgnore]
+        public bool IsCatalogLobby { get; set; }
         public string Id { get; set; } = string.Empty;
 
         public string Name { get; set; } = string.Empty;
-
-        public ServerState State { get; set; }
-
-        public string IpAddress { get; set; } = string.Empty;
-
-        public int Port { get; set; }
 
         public DateTime CreatedAt { get; set; }
 
@@ -25,4 +20,6 @@ namespace Smart_Training_Server.Models
 
         public ConcurrentDictionary<string, ContentInfo> Contents { get; set; } = new();
     }
-}
+    }
+
+

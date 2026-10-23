@@ -47,7 +47,7 @@
 - `Services/Operations/ServerOperationsService.cs`: `GetSnapshot()` — 현재 상태와 기록을 읽기 전용 DTO로 복사
 - `Services/Operations/ServerOperationsRegistry.cs`: `Record()`, `Snapshot()` — 이력 저장·제한·중복 종료 제거
 - `Services/Operations/OperationsPage.cs`: `Html` — 관리 화면과 자동 갱신
-- `Services/Room/RoomService.Operations.cs`: `GetOperationsRooms()` — 예약 만료 등을 실행하지 않는 조회
+- `Services/Room/RoomService.Query.cs`: `GetOperationsRooms()` — 예약 만료 등을 실행하지 않는 조회
 - `Helper/ProcessHelper.cs`: `GetProcessStatus()` — 프로세스 잠금 안에서 PID·실행 여부 확인
 
 기존 로비·방 서비스의 실행, 준비 완료, 종료, 실패 지점에 기록을 연결했습니다. 관리 화면의 조회로 프로그램을 실행하거나 접속 상태를 변경하지 않습니다. Unity 로비 목록에는 점검 상태·사유를 표시하고 새 입장 버튼을 제한합니다.

@@ -1,9 +1,11 @@
 # 9단계: 표준 생성 주소와 공통 API 오류 응답
 
+> 과거 단계의 변경 기록입니다. 현재는 생성자 ID를 제거하고 방 생성 시 입장 예약을 함께 등록합니다. 빈 방은 참가자·예약 수를 기준으로 정리합니다.
+
 ## 주소 변경
 
 - 권장: `POST /api/Lobby/create`, `POST /api/Room/create`
-- 기존: `POST /api/Lobby/creat`, `POST /api/Room/creat`도 같은 함수로 처리합니다.
+- 생성 주소는 `POST /api/Lobby/create`, `POST /api/Room/create`만 사용합니다.
 - 로그인, 입장, 퇴장, 조회 주소 및 인증 요구는 유지합니다.
 
 새로 작성할 Unity 코드는 create 주소를 사용하면 됩니다. 기존 호출은 바로 수정하지 않아도 됩니다.
@@ -40,8 +42,8 @@ errorCode는 이번 단계에서는 오류 종류별 공통 코드입니다. 방
 
 | 파일 | 함수/위치 | 변경 |
 |---|---|---|
-| _Controllers/LobbyController.cs | CreateLobby() | HttpPost("create") 추가. 기존 creat 유지 |
-| _Controllers/RoomController.cs | CreateRoom() | HttpPost("create") 추가. 기존 creat 유지 |
+| _Controllers/LobbyController.cs | CreateLobby() | HttpPost("create")만 사용 |
+| _Controllers/RoomController.cs | CreateRoom() | HttpPost("create")만 사용 |
 | 같은 파일 | GetRooms(), GetRoom() | 404 응답에 공통 오류 모델 사용 |
 | _Controllers/AuthController.cs | RefreshUnauthorized() | 갱신 실패 401 응답 통일 |
 | Services/Auth/UserTokenAuthenticationHandler.cs | HandleChallengeAsync() | 인증 실패 401 응답 통일 |
@@ -59,8 +61,8 @@ errorCode는 이번 단계에서는 오류 종류별 공통 코드입니다. 방
 LobbyController.CreateLobby(), RoomController.CreateRoom():
 
 ```csharp
-[HttpPost("creat")]
 [HttpPost("create")]
+
 ```
 
 Program.cs:
@@ -74,7 +76,7 @@ app.UseTrainingApiErrors();
 ## 확인 방법
 
 1. Swagger에서 새 create 주소로 로비·방을 생성합니다.
-2. 기존 creat 주소에서도 같은 동작인지 확인합니다.
+2. 생성 요청 주소가 create로 통일되어 있는지 확인합니다.
 3. 토큰 없이 요청하면 401과 unauthorized를 확인합니다.
 4. 없는 방을 조회하면 404와 not_found를 확인합니다.
 5. JSON 구문을 잘못 보내면 400과 validation_failed를 확인합니다.

@@ -1,37 +1,42 @@
-# STEP33 — 서버 IP 입력으로 접속하기
+# 같은 네트워크의 다른 PC에서 접속하기
 
-## 실행과 접속
-1. ASP.NET 프로젝트를 평소처럼 실행합니다. Visual Studio에서는 http 프로필을 선택합니다.
-2. 서버 PC의 Swagger 주소는 http://localhost:5229/swagger입니다.
-3. Unity 에디터 또는 Builds/Client/Smart Training Client.exe를 실행합니다.
-4. 같은 PC에서는 http://localhost:5229, 다른 PC에서는 http://서버PC의IPv4주소:5229를 입력합니다.
-5. 서버 연결 확인 후 서로 다른 닉네임으로 로그인하고 같은 로비와 방에 들어갑니다.
+## 서버 PC
 
-현재 개발 PC에서 확인한 주소는 http://192.168.45.118:5229입니다. IP가 변경되면 새 주소를 입력하세요.
-별도 LAN 실행 스크립트나 LAN 전용 클라이언트 폴더는 사용하지 않습니다.
-클라이언트를 다른 PC로 옮길 때는 Builds/Client 전체 폴더를 복사합니다.
+1. ASP.NET 프로젝트를 `http` 프로필로 실행합니다. 기본 API 포트는 `appsettings.json`의 `Server:Port = 5229`입니다.
+2. 실행 콘솔의 `[접속] 다른 PC에서 입력할 API 주소 후보`를 확인합니다. 이 주소를 클라이언트 PC에 입력합니다. IP는 네트워크에 따라 달라지므로 과거 문서의 IP를 그대로 사용하지 않습니다.
+3. 주소 후보가 여러 개면 클라이언트와 같은 네트워크의 주소를 사용합니다. `Room:AdvertisedAddress`에 해당 IP만 지정하면 방 서버 주소도 고정할 수 있습니다. 예: `192.168.1.20`이며 `http://`나 포트는 넣지 않습니다.
+4. 전용 서버 실행 파일과 `_Data`·DLL이 함께 있는지 확인합니다. API의 `Room:ServerExecutablePath`는 실제 방 서버 실행 파일과 일치해야 합니다. 로비 입장에는 Unity 실행 파일이 필요하지 않습니다.
 
-## 구현
-- Program.cs의 ConfigureKestrel(): ListenAnyIP로 모든 인터페이스에서 API 접속을 받습니다.
-- API 포트는 appsettings.json의 Server:Port이며 기본값은 5229입니다.
-- HTTP를 HTTPS로 강제 이동하지 않습니다.
-- Unity 방 서버는 기존처럼 UDP 접속을 받고 서버 PC의 IP를 자동으로 전달합니다.
-- 네트워크 어댑터가 여러 개라면 Room:AdvertisedAddress에 사용할 IP를 지정할 수 있습니다.
-- RoomClientBuild.Build(): 하나의 개발 클라이언트를 Builds/Client에 만듭니다.
-- Unity HTTP 옵션은 Development Only이며 해당 클라이언트는 Development Build입니다.
-- RoomEndpoint.TryValidate(): 접속용 주소로 쓸 수 없는 값이나 잘못 전달된 localhost를 안내합니다.
-- TrainingApiClient.Send(): 요청 시작 오류 후에도 다시 요청할 수 있게 정리합니다.
+`Room:AdvertisedAddress`가 빈 문자열이면 연결된 어댑터 중 IPv4 기본 게이트웨이가 있는 주소를 우선합니다. 연결되지 않은 어댑터·루프백·터널·169.254 대역은 자동 후보에서 제외합니다. 여러 네트워크가 있으면 자동 선택이 상대 PC의 접근 경로를 보장하지 않으므로 위 명시 설정을 사용합니다. 사용할 LAN IPv4가 없으면 같은 PC 접속용 루프백으로 동작합니다.
 
-포트를 변경하면 Room:ServerApiBaseUrl의 로컬 API 포트도 맞춰주세요.
-예: Server:Port가 5230이면 Room:ServerApiBaseUrl은 http://127.0.0.1:5230입니다.
+`Room:ServerApiBaseUrl`은 Unity 전용 서버가 같은 PC의 API에 연결하는 주소입니다. 기본 `http://127.0.0.1:5229`를 유지하고, API 포트를 바꿨다면 이 포트도 맞춥니다. 이 값에 클라이언트 PC의 IP를 넣지 않습니다.
 
-## 다른 PC에서 연결되지 않을 때
-다른 PC 브라우저에서 http://서버IP:5229/api/health에 접속하여 status가 ok인지 확인합니다.
-서버 PC의 방화벽에서 TCP 5229와 Unity 방 서버의 UDP 수신 연결이 허용되어야 합니다.
-UDP 포트는 현재 6000부터 방마다 할당되며 방 화면과 서버 실행 로그에서 실제 포트를 확인할 수 있습니다.
-Unity 방 서버 실행 경로는 bin/Debug/net8.0/RoomServer/Smart Training Room.exe입니다.
-같은 네트워크인지, 공유기의 무선 클라이언트 격리로 통신이 막히지 않는지도 확인합니다.
+## 클라이언트 PC
 
-이 구성은 HTTP를 사용하는 현재 개발용 구성입니다. 인터넷 운영 배포에는 HTTPS 등 배포 설정을 적용해야 합니다.
-공식 Unity HTTP 설정 설명: https://docs.unity3d.com/cn/6000.0/ScriptReference/InsecureHttpOption.html
-자동 검증은 동일 PC의 실제 LAN 주소로 수행하며 물리적으로 다른 PC에서의 접속은 별도 확인이 필요합니다.
+1. 통합 빌드 결과의 `Client` 폴더 전체를 복사합니다. `Smart Training Client.exe` 하나만 복사하지 않습니다.
+2. 브라우저에서 `http://서버PC의IP:5229/api/health`를 열어 `status: ok`가 나오는지 확인합니다.
+3. 클라이언트를 실행하고 로그인 화면의 서버 주소에 `http://서버PC의IP:5229`를 입력합니다. 다른 PC에서 `localhost`를 입력하면 해당 클라이언트 PC를 가리킵니다.
+4. 서로 다른 닉네임으로 같은 콘텐츠 로비·방에 입장합니다.
+
+읽기 전용 진단 도구도 사용할 수 있습니다. 아래 IP는 예시이므로 서버 콘솔에 표시된 값으로 바꿉니다.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File Tools/Networking/Get-ConnectionInfo.ps1 -ServerAddress 192.168.1.20 -Port 5229
+```
+
+클라이언트 PC에는 `Get-ConnectionInfo.ps1` 파일만 복사해서 같은 명령으로 실행할 수 있습니다. 이 도구는 주소 조회와 `/api/health` 요청만 수행하며 시스템 설정을 바꾸지 않습니다.
+
+## 방화벽과 포트
+
+API는 TCP 5229, Unity 방 서버는 기본 6000부터 방별로 할당되는 UDP 포트를 사용합니다. 로비 연결과 HTTP 확인이 성공해도 UDP가 막혀 있으면 방 접속은 실패할 수 있습니다. 실제 UDP 포트는 API의 전용 서버 실행 로그와 클라이언트 방 접속 안내에서 확인합니다.
+
+서버 PC의 Windows 방화벽 수신 규칙에서 API TCP 포트와 **실제로 실행되는 Unity 서버 프로그램의 UDP 수신**을 허용합니다. 아래는 신뢰하는 사설 LAN에서 관리자가 선택해 실행할 수 있는 예시이며 자동 실행하지 않습니다.
+
+```powershell
+New-NetFirewallRule -DisplayName 'Smart Training API LAN' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 5229 -Profile Private -RemoteAddress LocalSubnet
+New-NetFirewallRule -DisplayName 'Smart Training Unity UDP LAN' -Direction Inbound -Action Allow -Protocol UDP -Program 'C:\실제경로\RoomServer\Smart Training Room.exe' -Profile Private -RemoteAddress LocalSubnet
+```
+
+프로그램 경로와 API 포트를 실제 값으로 바꾸고, 현재 연결이 해당 Private 프로필인지 확인합니다. 방화벽 전체를 끄거나 모든 프로그램의 모든 포트를 열지 않습니다. 공용 Wi-Fi나 게스트 네트워크의 클라이언트 격리가 있으면 같은 공유기에 연결해도 PC끼리 통신하지 못할 수 있습니다.
+
+이 안내는 같은 LAN의 개발용 HTTP 접속을 대상으로 합니다. 인터넷 원격 접속·공유기 포트 전달·정식 배포 구성은 별도 작업입니다. 동일 PC의 LAN 주소로 접속하는 확인과 물리적으로 다른 PC에서의 확인은 구분합니다.

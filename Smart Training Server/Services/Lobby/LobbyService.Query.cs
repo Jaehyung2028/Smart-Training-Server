@@ -1,60 +1,78 @@
 using Smart_Training_Server.Models;
 using Smart_Training_Server.Responses.Lobby;
 
-namespace Smart_Training_Server.Services.Lobby;
-
-public partial class LobbyService
+// 내부 로비 정보를 공개용 응답으로 변환합니다. 서버 비밀값과 실행 파일 경로는 이 목록 응답에 포함하지 않습니다.
+namespace Smart_Training_Server.Services.Lobby
 {
-    public IReadOnlyList<LobbySummaryResponse> GetLobbySummaries()
+    public partial class LobbyService
     {
-        lock (userService.MembershipLock)
-            return lobbies.Values.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id, StringComparer.Ordinal)
-                .Select(ToLobbySummary).ToArray();
+        // 전체 로비를 안정된 순서로 정렬해 목록용 응답으로 반환합니다.
+        public IReadOnlyList<LobbySummaryResponse> GetLobbySummaries()
+        {
+            lock (userService.MembershipLock)
+            {
+                return lobbies.Values.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id, StringComparer.Ordinal).Select(ToLobbySummary).ToArray();
+            }
+        }
+
+        // 로비 하나를 요약 응답으로 변환합니다. 존재하지 않으면 null입니다.
+        public LobbySummaryResponse? GetLobbySummary(string lobbyId)
+        {
+            lock (userService.MembershipLock)
+            {
+                return lobbies.TryGetValue(lobbyId, out var lobby) ? ToLobbySummary(lobby) : null;
+            }
+        }
+
+        // 지정 로비의 콘텐츠를 공개용 트리 응답으로 변환합니다. 실행 경로 같은 내부 정보는 응답에서 제외합니다.
+        public IReadOnlyList<ContentQueryResponse>? GetContentsByLobby(string lobbyId)
+        {
+            lock (userService.MembershipLock)
+            {
+                return lobbies.TryGetValue(lobbyId, out var lobby) ? lobby.Contents.OrderBy(x => x.Key, StringComparer.Ordinal).Select(x => ToContentQuery(x.Value)).ToArray() : null;
+            }
+        }
+
+        private LobbySummaryResponse ToLobbySummary(LobbyInfo lobby)
+        {
+            // 같은 로비의 운영 정보를 속성마다 다시 조회하지 않고 한 번씩 읽어 응답에 담습니다.
+            var mode = operations.GetOperatingMode(lobby.Id);
+            var shutdown = operations.GetShutdown(lobby.Id);
+            var maintenance = operations.GetMaintenance(lobby.Id);
+            return new LobbySummaryResponse
+            {
+                Id = lobby.Id,
+                Name = lobby.Name,
+                ContentId = lobby.Id,
+                OperatingMode = mode.Mode,
+                OperatingReason = mode.Reason,
+                OperatingRevision = mode.Revision,
+                ShutdownAtUtc = shutdown.AtUtc,
+                ShutdownReason = shutdown.Reason,
+                ShutdownState = shutdown.State,
+                ShutdownRevision = shutdown.Revision,
+                IsMaintenance = maintenance.Enabled,
+                MaintenanceReason = maintenance.Reason,
+                MaintenanceChangedAtUtc = maintenance.ChangedAtUtc,
+                MaintenanceRevision = maintenance.Revision,
+                UserCount = lobby.Users.Count,
+                RoomCount = lobby.Rooms.Count,
+                ContentCount = lobby.Contents.Count,
+                CreatedAt = lobby.CreatedAt
+            };
+        }
+
+        private static ContentQueryResponse ToContentQuery(ContentInfo content)
+        {
+            return new()
+            {
+                RootContent = content.RootContent,
+                Id = content.Id,
+                ParentId = content.ParentId,
+                Depth = content.Depth,
+                Title = content.Title,
+                Children = content.Children.Select(ToContentQuery).ToArray()
+            };
+        }
     }
-
-    public LobbySummaryResponse? GetLobbySummary(string lobbyId)
-    {
-        lock (userService.MembershipLock)
-            return lobbies.TryGetValue(lobbyId, out var lobby) ? ToLobbySummary(lobby) : null;
-    }
-
-    public IReadOnlyList<ContentQueryResponse>? GetContentsByLobby(string lobbyId)
-    {
-        lock (userService.MembershipLock)
-            return lobbies.TryGetValue(lobbyId, out var lobby)
-                ? lobby.Contents.OrderBy(x => x.Key, StringComparer.Ordinal)
-                    .Select(x => ToContentQuery(x.Value)).ToArray()
-                : null;
-    }
-
-    private LobbySummaryResponse ToLobbySummary(LobbyInfo lobby) => new()
-    {
-        Id = lobby.Id,
-        Name = lobby.Name,
-        ContentId = lobby.IsCatalogLobby ? lobby.Id : string.Empty,
-        ServerState = runtimes.TryGetValue(lobby.Id, out var runtime) ? runtime.State : "offline",
-        PendingUsers = pendingJoins.Values.Count(x => x.LobbyId == lobby.Id),
-        OperatingMode = operations.GetOperatingMode(lobby.Id).Mode, OperatingReason = operations.GetOperatingMode(lobby.Id).Reason, OperatingRevision = operations.GetOperatingMode(lobby.Id).Revision, ShutdownAtUtc = operations.GetShutdown(lobby.Id).AtUtc,
-        ShutdownReason = operations.GetShutdown(lobby.Id).Reason,
-        ShutdownState = operations.GetShutdown(lobby.Id).State,
-        ShutdownRevision = operations.GetShutdown(lobby.Id).Revision,
-        IsMaintenance = operations.GetMaintenance(lobby.Id).Enabled,
-        MaintenanceReason = operations.GetMaintenance(lobby.Id).Reason,
-        MaintenanceChangedAtUtc = operations.GetMaintenance(lobby.Id).ChangedAtUtc,
-        MaintenanceRevision = operations.GetMaintenance(lobby.Id).Revision,
-        UserCount = lobby.Users.Count,
-        RoomCount = lobby.Rooms.Count,
-        ContentCount = lobby.Contents.Count,
-        CreatedAt = lobby.CreatedAt
-    };
-
-    private static ContentQueryResponse ToContentQuery(ContentInfo content) => new()
-    {
-        RootContent = content.RootContent,
-        Id = content.Id,
-        ParentId = content.ParentId,
-        Depth = content.Depth,
-        Title = content.Title,
-        Children = content.Children.Select(ToContentQuery).ToArray()
-    };
 }

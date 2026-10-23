@@ -42,7 +42,7 @@ $taskSettings['Operations__OpenBrowserOnStart']='false';$taskSettings['Operation
 $taskSettings['Operations__HistoryPath']=Join-Path $taskRun 'history.json';$taskSettings['SMART_TRAINING_SERVER_PROBE']='0'
 $taskOpsHeaders=@{'X-Operations-Request'='1';Origin=$taskApi};$taskRound=0
 function Ops {Invoke-RestMethod ($taskApi+'/api/operations')}
-function Mode([bool]$enabled,[string]$reason,[long]$revision){Invoke-RestMethod ($taskApi+'/api/operations/lobbies/sample-training/maintenance') -Method Post -Headers $taskOpsHeaders -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes((@{enabled=$enabled;reason=$reason;expectedRevision=$revision}|ConvertTo-Json -Compress)))}
+function Mode([bool]$enabled,[string]$reason,[long]$revision){Invoke-RestMethod ($taskApi+'/api/operations/lobbies/sample-training/mode') -Method Post -Headers $taskOpsHeaders -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes((@{mode=$(if($enabled){'maintenance'}else{'running'});atUtc=$null;reason=$reason;expectedRevision=$revision}|ConvertTo-Json -Compress)))}
 function Root { (Ops).lobbies|Where-Object {$_.id -eq 'sample-training'} }
 function Start-Api {
  $script:taskRound++;$dll=Join-Path $taskServerRoot 'bin/Debug/net8.0/Smart Training Server.dll'
@@ -53,8 +53,8 @@ function Start-Api {
 }
 function Stop-Api {if($taskServer -and !$taskServer.HasExited){Stop-Process -Id $taskServer.Id -Force;$null=$taskServer.WaitForExit(5000)}}
 function Schedule($at,[string]$reason,[long]$revision){
- $body=@{atUtc=$at;reason=$reason;expectedRevision=$revision}|ConvertTo-Json -Compress
- Invoke-RestMethod ($taskApi+'/api/operations/lobbies/sample-training/shutdown') -Method Post -Headers $taskOpsHeaders -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body))
+ $body=@{mode=$(if($null -eq $at){'running'}else{'scheduled'});atUtc=$at;reason=$reason;expectedRevision=$revision}|ConvertTo-Json -Compress
+ Invoke-RestMethod ($taskApi+'/api/operations/lobbies/sample-training/mode') -Method Post -Headers $taskOpsHeaders -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body))
 }
 try{
  foreach($key in $taskSettings.Keys){$taskOld[$key]=[Environment]::GetEnvironmentVariable($key,'Process');[Environment]::SetEnvironmentVariable($key,$taskSettings[$key],'Process')}
@@ -82,9 +82,9 @@ try{
  Check ($blocked -and (Root).pendingUsers -eq 0) 'scheduled lobby rejects fresh admission without reservation'
  $stale=$false;try{$null=Schedule $null 'stale' 0}catch{$stale=$_.Exception.Response.StatusCode.value__ -eq 409};Check $stale 'stale operator cancellation is rejected'
  $invalid=$false;try{$null=Schedule ([DateTimeOffset]::UtcNow.AddMinutes(-1).ToString('o')) 'past' 1}catch{$invalid=$_.Exception.Response.StatusCode.value__ -eq 400};Check $invalid 'past deadline is rejected'
- $forbidden=$false;try{$null=Api-Post '/api/operations/lobbies/sample-training/shutdown' @{atUtc=$null;reason='user';expectedRevision=1}}catch{$forbidden=$_.Exception.Response.StatusCode.value__ -eq 403};Check $forbidden 'ordinary user request cannot cancel operations schedule'
+ $forbidden=$false;try{$null=Api-Post '/api/operations/lobbies/sample-training/mode' @{mode='running';atUtc=$null;reason='user';expectedRevision=1}}catch{$forbidden=$_.Exception.Response.StatusCode.value__ -eq 403};Check $forbidden 'ordinary user request cannot cancel operations schedule'
  $evil=@{'X-Operations-Request'='1';Origin='https://attacker.example'};$forbidden=$false
- try{$null=Invoke-RestMethod ($taskApi+'/api/operations/lobbies/sample-training/shutdown') -Method Post -Headers $evil -ContentType application/json -Body '{"atUtc":null,"reason":"cross","expectedRevision":1}'}catch{$forbidden=$_.Exception.Response.StatusCode.value__ -eq 403};Check $forbidden 'cross-origin cancellation is rejected'
+ try{$null=Invoke-RestMethod ($taskApi+'/api/operations/lobbies/sample-training/mode') -Method Post -Headers $evil -ContentType application/json -Body '{"mode":"running","atUtc":null,"reason":"cross","expectedRevision":1}'}catch{$forbidden=$_.Exception.Response.StatusCode.value__ -eq 403};Check $forbidden 'cross-origin cancellation is rejected'
  $null=Schedule $null '예약 취소' 1
  $null=Wait-Player 1 {param($s) @($s.lobbies|Where-Object {$_.id -eq 'sample-training' -and $_.shutdownState -eq 'none'}).Count -eq 1} 'Automatic cancellation notice'
  Check ((Read-Player 0).connected -and (Root).processId -eq $pidLobby -and (Ops).rooms[0].processId -eq $pidRoom) 'cancellation retains worker identities and active room'

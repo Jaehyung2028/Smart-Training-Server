@@ -66,12 +66,12 @@ var roots = JsonSerializer.Deserialize<List<ContentInfo>>(
 
 ## 직접 확인할 순서
 
-서버를 실행하고 개발 환경의 Swagger에서 다음 순서로 확인합니다. 기존 생성 주소의 철자 `creat`는 이번 작업에서 변경하지 않았습니다.
+서버를 실행하고 개발 환경의 Swagger에서 다음 순서로 확인합니다. 생성 주소는 `create`로 통일했습니다.
 
 1. `POST /api/Auth/login` → UserName 입력, 응답 User.Id 기록.
-2. `POST /api/Lobby/creat` → LobbyName 입력. 응답 Lobby.Contents에 sample-training이 있는지 확인하고 Lobby.Id 기록.
+2. `POST /api/Lobby/create` → LobbyName 입력. 응답 Lobby.Contents에 sample-training이 있는지 확인하고 Lobby.Id 기록.
 3. `POST /api/Lobby/join` → UserId, LobbyId 입력.
-4. `POST /api/Room/creat` → 위 ID와 RoomName, ContentId: sample-training, MaxUsers: 2 입력.
+4. `POST /api/Room/create` → 위 ID와 RoomName, ContentId: sample-training, MaxUsers: 2 입력.
 5. 성공 응답 Room.Content의 제목과 Children 확인.
 
 방 생성 요청 예시:

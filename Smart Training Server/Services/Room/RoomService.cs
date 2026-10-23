@@ -1,3 +1,6 @@
+using Smart_Training_Server.Responses.Base;
+using Microsoft.Extensions.Logging.Abstractions;
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Options;
 using Smart_Training_Server.Enum;
 using Smart_Training_Server.Helper;
@@ -7,99 +10,127 @@ using Smart_Training_Server.Requests.Room;
 using Smart_Training_Server.Responses.Room;
 using Smart_Training_Server.Services.Auth;
 using Smart_Training_Server.Services.Lobby;
-using System.Collections.Concurrent;
 
+// 방 생성·퇴장과 전용 서버 준비 절차를 담당합니다. 다른 RoomService.* 파일들과 동일한 저장소와 잠금을 사용합니다.
 namespace Smart_Training_Server.Services.Room
 {
+    // 방 정보와 입장·퇴장 규칙을 관리합니다. RoomService.*.cs는 기능별로 나눈 동일 클래스입니다.
     public partial class RoomService
     {
+        // API가 알고 있는 방 정보 저장소입니다. Unity 프로세스 자체는 processManager가 관리합니다.
         private readonly ConcurrentDictionary<string, RoomInfo> rooms = new();
-
+        // 방마다 준비 완료 신호를 공유합니다. 프로세스 실행 성공과 실제 접속 준비 완료는 구분합니다.
         private readonly ConcurrentDictionary<string, TaskCompletionSource<bool>> readyMap = new();
-
         private readonly LobbyService lobbyService;
         private readonly UserService userService;
+        private readonly ILogger<RoomService> logger;
         private readonly RoomOptions roomOptions;
         private readonly IRoomServerProcessManager processManager;
         private readonly Smart_Training_Server.Services.Operations.ServerOperationsRegistry operations;
 
-        public RoomService(LobbyService lobbyService, 
-            UserService userService, 
-            IOptions<RoomOptions> options, TimeProvider? timeProvider = null,
+        // 생성자입니다. 이 객체를 만드는 데 필요한 서비스나 설정을 전달받아 초기화합니다.
+        public RoomService(
+            LobbyService lobbyService,
+            UserService userService,
+            IOptions<RoomOptions> options,
+            TimeProvider? timeProvider = null,
             IRoomServerProcessManager? processManager = null,
-            Smart_Training_Server.Services.Operations.ServerOperationsRegistry? operations = null)
+            Smart_Training_Server.Services.Operations.ServerOperationsRegistry? operations = null,
+            ILogger<RoomService>? logger = null
+        )
         {
             this.lobbyService = lobbyService;
             this.userService = userService;
-
+            this.logger = logger ?? NullLogger<RoomService>.Instance;
             roomOptions = options.Value;
             this.timeProvider = timeProvider ?? TimeProvider.System;
             this.processManager = processManager ?? new RoomServerProcessManager(roomOptions.ServerApiBaseUrl);
             this.operations = operations ?? new();
-            if (string.IsNullOrWhiteSpace(roomOptions.ServerExecutablePath) || roomOptions.ServerReadyTimeoutSeconds is < 1 or > 300)
+            if (string.IsNullOrWhiteSpace(roomOptions.ServerExecutablePath) ||
+                roomOptions.ServerReadyTimeoutSeconds is < 1 or > 300)
+            {
                 throw new ArgumentOutOfRangeException(nameof(options), "서버 경로와 1~300초의 준비 대기 시간을 설정해주세요.");
+            }
         }
 
+        // 메모리 저장소에서 ID에 해당하는 객체를 조회합니다. 결과가 null이면 호출자가 실패 또는 없음으로 처리합니다.
         public RoomInfo? FindById(string roomId)
         {
             rooms.TryGetValue(roomId, out RoomInfo? room);
-
             return room;
         }
 
+        // 메모리 저장소에서 ID에 해당하는 객체를 조회합니다. 결과가 null이면 호출자가 실패 또는 없음으로 처리합니다.
         public RoomInfo? FindById(LobbyInfo lobby, string roomId)
         {
             lobby.Rooms.TryGetValue(roomId, out RoomInfo? room);
-
             return room;
         }
 
+        // 같은 로비 안에서 동일한 방 이름이 있는지 영문 대소문자를 구분하지 않고 확인합니다.
         private bool ExistsRoomName(LobbyInfo lobby, string roomName)
         {
-            return lobby.Rooms.Values.Any(room =>
-                room.Name.Equals(
-                    roomName,
-                    StringComparison.OrdinalIgnoreCase));
+            return lobby.Rooms.Values.Any(room => room.Name.Equals(roomName, StringComparison.OrdinalIgnoreCase));
         }
 
+        // 방의 고유 ID·소속 로비·콘텐츠·정원·최초 생성자와 기본 시각을 초기화합니다.
         private RoomInfo CreateRoomInfo(
             LobbyInfo lobby,
             UserInfo masterUser,
             ContentInfo content,
-            CreateRoomRequest request)
+            CreateRoomRequest request
+        )
         {
             return new RoomInfo
             {
                 Id = Guid.NewGuid().ToString(),
-
                 LobbyId = lobby.Id,
-
                 Name = request.RoomName,
-
                 State = ServerState.Creating,
-
                 Content = content,
-
                 MaxUsers = request.MaxUsers,
-
                 MasterUserId = masterUser.Id,
-                CreatorUserId = masterUser.Id,
-
                 CreatedAt = DateTime.UtcNow,
-
                 LastActiveTime = DateTime.UtcNow
             };
         }
 
-        public CreateRoomResponse CreateRoom(CreateRoomRequest request)
+        // 같은 로비의 방 이름과 사용자 상태를 확인하고 방 정보를 생성합니다.
+        // authenticatedUserId는 Controller가 인증 토큰에서 확인한 요청자입니다. request에는 대상과 입력값만 있습니다.
+        public CreateRoomResponse CreateRoom(string authenticatedUserId, CreateRoomRequest request)
         {
-            lock (userService.MembershipLock) return CreateRoomCore(request);
+            lock (userService.MembershipLock)
+            {
+                ExpireReservations();
+                var user = userService.FindById(authenticatedUserId);
+                if (user != null && (user.CurrentRoomId.Length != 0 || user.PendingRoomId.Length != 0))
+                {
+                    return new CreateRoomResponse { Success = false, Message = "이미 방에 입장했거나 입장을 예약했습니다." };
+                }
+
+                var response = CreateRoomCore(authenticatedUserId, request);
+                if (response.Success && response.Room != null && user != null)
+                {
+                    // 방 등록과 생성자의 자리 확보를 같은 잠금에서 완료합니다. 응답이 유실되어도 예약 만료로 정리됩니다.
+                    ReserveRoom(user, response.Room, awaitingJoinRequest: true);
+                }
+
+                return response;
+            }
         }
 
-        private CreateRoomResponse CreateRoomCore(CreateRoomRequest request)
+        // 이름·비밀번호·정원·소속·콘텐츠 등을 검사한 뒤 방 정보를 등록합니다. 관련 상태 변경은 공통 잠금 안에서 수행합니다.
+        private CreateRoomResponse CreateRoomCore(string authenticatedUserId, CreateRoomRequest request)
         {
             if (!RoomPassword.Valid(request.Password))
-                return new() { Success = false, Message = "방 비밀번호는 4~32자이며 공백만 사용할 수 없습니다." };
+            {
+                return new()
+                {
+                    Success = false,
+                    Message = "방 비밀번호는 4~32자이며 공백만 사용할 수 없습니다."
+                };
+            }
+
             // 1. 방 이름 공백 검사
             if (string.IsNullOrWhiteSpace(request.RoomName))
             {
@@ -111,8 +142,7 @@ namespace Smart_Training_Server.Services.Room
             }
 
             // 2. 사용자 존재 확인
-            UserInfo? user = userService.FindById(request.UserId);
-
+            UserInfo? user = userService.FindById(authenticatedUserId);
             if (user == null)
             {
                 return new CreateRoomResponse
@@ -124,7 +154,6 @@ namespace Smart_Training_Server.Services.Room
 
             // 3. 로비 존재 확인
             LobbyInfo? lobby = lobbyService.FindById(request.LobbyId);
-
             if (lobby == null)
             {
                 return new CreateRoomResponse
@@ -145,20 +174,17 @@ namespace Smart_Training_Server.Services.Room
             }
 
             // 5. 방 이름 길이 검사
-            if (request.RoomName.Length < roomOptions.NameMinLength ||
-                request.RoomName.Length > roomOptions.NameMaxLength)
+            if (request.RoomName.Length < roomOptions.NameMinLength || request.RoomName.Length > roomOptions.NameMaxLength)
             {
                 return new CreateRoomResponse
                 {
                     Success = false,
-                    Message =
-                        $"방 이름은 {roomOptions.NameMinLength} ~ {roomOptions.NameMaxLength}자 사이여야 합니다."
+                    Message = $"방 이름은 {roomOptions.NameMinLength} ~ {roomOptions.NameMaxLength}자 사이여야 합니다."
                 };
             }
 
             // 6. 방 이름 중복 검사
-            if (!roomOptions.AllowDuplicateName &&
-                ExistsRoomName(lobby, request.RoomName))
+            if (!roomOptions.AllowDuplicateName && ExistsRoomName(lobby, request.RoomName))
             {
                 return new CreateRoomResponse
                 {
@@ -168,21 +194,17 @@ namespace Smart_Training_Server.Services.Room
             }
 
             // 7. 최대 인원 검사
-            if (request.MaxUsers < roomOptions.MinUsers ||
-                request.MaxUsers > roomOptions.MaxUsers)
+            if (request.MaxUsers < roomOptions.MinUsers || request.MaxUsers > roomOptions.MaxUsers)
             {
                 return new CreateRoomResponse
                 {
                     Success = false,
-                    Message =
-                        $"방 최대 인원은 {roomOptions.MinUsers} ~ {roomOptions.MaxUsers}명 사이여야 합니다."
+                    Message = $"방 최대 인원은 {roomOptions.MinUsers} ~ {roomOptions.MaxUsers}명 사이여야 합니다."
                 };
             }
 
             // 8. 콘텐츠 존재 확인
-            if (!lobby.Contents.TryGetValue(
-                request.ContentId,
-                out ContentInfo? content))
+            if (!lobby.Contents.TryGetValue(request.ContentId, out ContentInfo? content))
             {
                 return new CreateRoomResponse
                 {
@@ -192,14 +214,9 @@ namespace Smart_Training_Server.Services.Room
             }
 
             // 9. 방 생성
-            RoomInfo room = CreateRoomInfo(
-                lobby,
-                user,
-                content,
-                request);
-
+            RoomInfo room = CreateRoomInfo(lobby, user, content, request);
             RoomPassword.Set(room, request.Password);
-            if(!rooms.TryAdd(room.Id, room))
+            if (!rooms.TryAdd(room.Id, room))
             {
                 return new CreateRoomResponse
                 {
@@ -220,7 +237,6 @@ namespace Smart_Training_Server.Services.Room
 
             // 11. 로비 마지막 활동 시간 갱신
             lobby.LastActiveTime = DateTime.UtcNow;
-
             return new CreateRoomResponse
             {
                 Success = true,
@@ -229,188 +245,45 @@ namespace Smart_Training_Server.Services.Room
             };
         }
 
-        private async Task<bool> EnsureRoomServer(RoomInfo room)
-        {
-            TaskCompletionSource<bool> readyTask;
-
-            lock (userService.MembershipLock)
-            {
-                if (FindById(room.Id) != room || room.ReservedUsers == 0) return false;
-                if (room.State == ServerState.Running)
-                {
-                    return true;
-                }
-
-                readyTask = CreateReadyTask(room);
-
-                if (room.State == ServerState.Creating)
-                {
-                    try
-                    {
-                        InitializeRoom(room);
-                        room.State = ServerState.Starting;
-                        if (!LaunchRoomServer(room))
-                        {
-                            ResetRoomServer(room, "실행 실패");
-                            return false;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[Room] 초기화 실패 ({room.Id}): {ex.Message}");
-                        ResetRoomServer(room, "초기화 실패");
-                        return false;
-                    }
-                }
-            }
-
-            return await WaitRoomReady(room, readyTask);
-        }
-
-        private void InitializeNetwork(RoomInfo room)
-        {
-            room.IpAddress = string.IsNullOrEmpty(roomOptions.AdvertisedAddress)
-                ? NetworkHelper.GetLocalIPAddress()
-                : roomOptions.AdvertisedAddress;
-
-            room.Port = PortHelper.GetAvailablePort();
-        }
-
-        private bool InitializeRoom(RoomInfo room)
-        {
-            InitializeNetwork(room);
-            room.ServerToken = NewToken();
-
-            room.LastActiveTime = DateTime.UtcNow;
-
-            return true;
-        }
-
-        private bool LaunchRoomServer(RoomInfo room)
-        {
-            operations.Record("room", room.Id, room.LobbyId, room.Name, "starting");
-            try
-            {
-                processManager.Launch(
-                    room.Id,
-                    room.Port,
-                    roomOptions.ServerExecutablePath, room.ServerToken);
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[Room] 실행 실패 ({room.Id}): {ex.Message}");
-                return false;
-            }
-        }
-
-        private TaskCompletionSource<bool> CreateReadyTask(RoomInfo room)
-        {
-            return readyMap.GetOrAdd(
-                room.Id,
-                _ => new TaskCompletionSource<bool>(
-                    TaskCreationOptions.RunContinuationsAsynchronously));
-        }
-
-        private async Task<bool> WaitRoomReady(
-    RoomInfo room,
-    TaskCompletionSource<bool> readyTask)
-        {
-            Task completed =
-                await Task.WhenAny(
-                    readyTask.Task,
-                    Task.Delay(TimeSpan.FromSeconds(roomOptions.ServerReadyTimeoutSeconds)));
-
-            if (completed == readyTask.Task)
-            {
-                try
-                {
-                    return await readyTask.Task;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.Message);
-
-                    room.State = ServerState.Creating;
-
-                    return false;
-                }
-            }
-
-            lock (userService.MembershipLock)
-            {
-                if (room.State == ServerState.Running) return true;
-                if (readyMap.TryGetValue(room.Id, out var current) && current == readyTask)
-                {
-                    ResetRoomServer(room, "준비 대기 시간 초과");
-                }
-            }
-
-            Console.WriteLine($"[Room] READY Timeout : {room.Id}");
-
-            return false;
-        }
-
-        public void OnReady(string roomId)
-        {
-            RoomInfo? room = FindById(roomId);
-
-            if (room == null)
-            {
-                return;
-            }
-
-            room.State = ServerState.Running;
-            operations.Record("room", room.Id, room.LobbyId, room.Name, "ready");
-
-            room.LastActiveTime = DateTime.UtcNow;
-
-            CompleteReadyTask(roomId);
-        }
-
-        private void CompleteReadyTask(string roomId)
-        {
-            if (readyMap.TryRemove(roomId, out var readyTask))
-            {
-                readyTask.TrySetResult(true);
-            }
-        }
-
-        public LeaveRoomResponse LeaveRoom(LeaveRoomRequest request)
+        // authenticatedUserId는 Controller가 인증 토큰에서 확인한 요청자입니다. request에는 대상과 입력값만 있습니다.
+        public BaseResponse LeaveRoom(string authenticatedUserId, RoomMembershipRequest request)
         {
             lock (userService.MembershipLock)
             {
                 ExpireReservations();
-                if (reservations.TryGetValue(request.UserId, out var pending) &&
-                    pending.RoomId == request.RoomId && FindById(pending.RoomId)?.LobbyId == request.LobbyId)
+                if (reservations.TryGetValue(authenticatedUserId, out var pending) &&
+                    pending.RoomId == request.RoomId &&
+                    FindById(pending.RoomId)?.LobbyId == request.LobbyId)
                 {
                     RemoveReservation(pending);
-                    return new LeaveRoomResponse { Success = true, Message = "입장 예약이 취소되었습니다." };
+                    return new BaseResponse
+                    {
+                        Success = true,
+                        Message = "입장 예약이 취소되었습니다."
+                    };
                 }
-                return LeaveRoomCore(request);
+
+                return LeaveRoomCore(authenticatedUserId, request);
             }
         }
 
-        private LeaveRoomResponse LeaveRoomCore(LeaveRoomRequest request)
+        // 실제 참가자의 소속을 해제하고 남은 인원에 맞춰 방장과 방 정리를 처리합니다.
+        private BaseResponse LeaveRoomCore(string authenticatedUserId, RoomMembershipRequest request)
         {
-            UserInfo? user = userService.FindById(request.UserId);
-
+            UserInfo? user = userService.FindById(authenticatedUserId);
             if (user == null)
             {
-                return new LeaveRoomResponse
+                return new BaseResponse
                 {
                     Success = false,
                     Message = "사용자를 찾을 수 없습니다."
                 };
             }
 
-            LobbyInfo? lobby =
-    lobbyService.FindById(request.LobbyId);
-
+            LobbyInfo? lobby = lobbyService.FindById(request.LobbyId);
             if (lobby == null)
             {
-                return new LeaveRoomResponse
+                return new BaseResponse
                 {
                     Success = false,
                     Message = "로비를 찾을 수 없습니다."
@@ -418,10 +291,9 @@ namespace Smart_Training_Server.Services.Room
             }
 
             RoomInfo? room = FindById(lobby, request.RoomId);
-
             if (room == null)
             {
-                return new LeaveRoomResponse
+                return new BaseResponse
                 {
                     Success = false,
                     Message = "방을 찾을 수 없습니다."
@@ -430,17 +302,16 @@ namespace Smart_Training_Server.Services.Room
 
             if (user.CurrentRoomId != room.Id)
             {
-                return new LeaveRoomResponse
+                return new BaseResponse
                 {
                     Success = false,
-
                     Message = "해당 방에 입장해 있지 않습니다."
                 };
             }
 
             if (!room.Users.TryRemove(user.Id, out _))
             {
-                return new LeaveRoomResponse
+                return new BaseResponse
                 {
                     Success = false,
                     Message = "방 퇴장에 실패했습니다."
@@ -448,15 +319,11 @@ namespace Smart_Training_Server.Services.Room
             }
 
             user.CurrentRoomId = string.Empty;
-
             user.CurrentRoomName = string.Empty;
             user.RoomIndex = -1;
             connectedTokens.Remove(user.Id);
-
             room.LastActiveTime = DateTime.UtcNow;
-
             lobby.LastActiveTime = DateTime.UtcNow;
-
             // 마지막 사용자
             if (room.Users.IsEmpty && room.ReservedUsers == 0)
             {
@@ -468,13 +335,14 @@ namespace Smart_Training_Server.Services.Room
             }
 
             // 7. 성공
-            return new LeaveRoomResponse
+            return new BaseResponse
             {
                 Success = true,
                 Message = "방에서 퇴장했습니다."
             };
         }
 
+        // 기존 방장이 나간 경우 남은 참가자에게 방장 권한을 위임합니다.
         private void ChangeMaster(RoomInfo room)
         {
             if (room.Users.IsEmpty)
@@ -483,26 +351,17 @@ namespace Smart_Training_Server.Services.Room
                 return;
             }
 
-            UserInfo newMaster = room.Users.Values
-                .OrderBy(x => x.RoomIndex)
-                .First();
-
+            UserInfo newMaster = room.Users.Values.OrderBy(x => x.RoomIndex).First();
             room.MasterUserId = newMaster.Id;
         }
 
-        private bool DeleteRoom(
-    LobbyInfo? lobby,
-    RoomInfo room)
+        // 방 서버와 관련 저장소를 정리하고 소속 로비의 방 목록에서도 제거합니다.
+        private bool DeleteRoom(LobbyInfo? lobby, RoomInfo room)
         {
             // 실행 중인 서버 종료
-            if (room.State == ServerState.Running || room.State == ServerState.Starting)
-            {
-                processManager.Stop(room.Id);
-            }
-
+            StopRoomProcess(room);
             room.State = ServerState.Stopped;
             operations.Record("room", room.Id, room.LobbyId, room.Name, "stopped", "방 삭제");
-
             // READY 대기 제거
             if (readyMap.TryRemove(room.Id, out var readyTask))
             {
@@ -511,18 +370,12 @@ namespace Smart_Training_Server.Services.Room
 
             serverConnections.Remove(room.Id);
             room.ServerToken = string.Empty;
-
             // 전역 Room 제거
             rooms.TryRemove(room.Id, out _);
-
             // Lobby 소속 Room 제거
             lobby?.Rooms.TryRemove(room.Id, out _);
-
-            Console.WriteLine($"[Room 삭제] {room.Name}");
-
+            logger.LogInformation("방 삭제: {RoomId}, {RoomName}", room.Id, room.Name);
             return true;
         }
     }
-        }
-
-
+}

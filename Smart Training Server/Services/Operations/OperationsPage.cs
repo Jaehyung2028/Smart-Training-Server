@@ -1,8 +1,13 @@
-namespace Smart_Training_Server.Services.Operations;
-
-internal static class OperationsPage
+// 운영 페이지의 HTML·CSS·JavaScript를 문자열로 보관합니다. OperationsController.Page가 이 문자열을 웹 페이지로 응답합니다.
+namespace Smart_Training_Server.Services.Operations
 {
-    internal const string Html = """
+    internal static class OperationsPage
+    {
+        // 화면 구성: 상단 요약 → 로비 목록 → 운영 모드 입력 → 방 목록 → 최근 이벤트 표입니다.
+        // 문자열 안의 table()은 textContent로 표를 만들고, openMode()는 설정 입력을 엽니다.
+        // refresh()는 /api/operations를 조회해 표를 갱신하고 마지막 setInterval이 5초마다 호출합니다.
+        // 적용 버튼은 /mode에 사유·시각·현재 버전을 POST합니다. 409이면 최신 설정이 달라졌으므로 다시 조회합니다.
+        internal const string Html = """
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Smart Training 서버 운영 상태</title>
@@ -17,9 +22,9 @@ th,td{text-align:left;padding:12px;border-bottom:1px solid #e4e9f1;white-space:n
 <h1>Smart Training 서버 운영 상태</h1>
 <p>서버 PC 전용 운영 화면 · 5초마다 자동 갱신합니다. 점검 설정에서 입장만 차단 또는 예약 종료를 선택합니다. 운영 재개 한 번으로 해제합니다.</p>
 <button id="refresh">지금 새로고침</button><p id="message" role="status">상태를 불러오고 있습니다…</p><p id="summary"></p><p id="history"></p>
-<h2>콘텐츠 로비</h2><div class="table"><table><thead><tr><th>로비 이름 / ID</th><th>운영 모드 / 사유</th><th>서버 상태</th><th>프로그램 / PID</th><th>접속</th><th>입장 대기</th><th>방</th><th>마지막 실행</th><th>마지막 종료</th><th>마지막 실패</th><th>운영 관리</th></tr></thead><tbody id="lobbies"></tbody></table></div>
+<h2>콘텐츠 로비</h2><div class="table"><table><thead><tr><th>로비 이름 / ID</th><th>운영 모드 / 사유</th><th>사용자</th><th>방</th><th>운영 관리</th></tr></thead><tbody id="lobbies"></tbody></table></div>
 <section id="mode-form" hidden><h2 id="mode-title"></h2>
-<p>입장만 차단하면 기존 참가자는 계속 이용합니다. 예약 종료는 새 입장을 차단하고 지정 시각에 참가자를 목록으로 이동시킨 뒤 로비·방 서버를 종료합니다. 종료 후에는 점검 중으로 유지합니다. 운영 재개는 모든 제한과 예약을 한 번에 해제합니다.</p>
+<p>입장만 차단하면 기존 참가자는 계속 이용합니다. 예약 종료는 새 입장을 차단하고 지정 시각에 참가자를 목록으로 이동시킨 뒤 방 서버를 종료하고 로비 소속을 해제합니다. 종료 후에는 점검 중으로 유지합니다. 운영 재개는 모든 제한과 예약을 한 번에 해제합니다.</p>
 <div id="mode-choice"><label for="mode-kind">점검 방식</label><select id="mode-kind"><option value="maintenance">입장만 차단</option><option value="scheduled">예약 종료</option></select></div>
 <div id="mode-time-row" hidden><label for="mode-time">종료 시각 (현지 시각, 30일 이내)</label><input id="mode-time" type="datetime-local" step="1"></div>
 <label for="mode-reason">변경 사유 (필수, 200자 이내)</label><br><textarea id="mode-reason" maxlength="200" rows="3" style="width:min(95%,650px)"></textarea><br><button id="mode-apply">설정 적용</button> <button id="mode-cancel">입력 닫기</button></section><p id="mode-result" role="status"></p>
@@ -67,7 +72,7 @@ let loading=false;
 
 async function refresh(){if(loading)return;loading=true;document.getElementById('refresh').disabled=true;try{
 const response=await fetch('/api/operations',{cache:'no-store'});if(!response.ok)throw new Error('운영 정보를 불러오지 못했습니다 (HTTP '+response.status+'). 서버 PC의 localhost에서 열어주세요.');const data=await response.json();
-table('lobbies',data.lobbies,[x=>x.name+' / '+x.id,x=>modeLabels[x.operation.mode]+(x.operation.mode==='scheduled'?' · '+time(x.operation.shutdownAtUtc):'')+(x.operation.reason?' · '+x.operation.reason:''),x=>state(x.state),process,x=>x.connectedUsers,x=>x.pendingUsers,x=>x.roomCount,x=>time(x.lifecycle?.startedAtUtc),x=>time(x.lifecycle?.stoppedAtUtc),failure,x=>'']);
+table('lobbies',data.lobbies,[x=>x.name+' / '+x.id,x=>modeLabels[x.operation.mode]+(x.operation.mode==='scheduled'?' · '+time(x.operation.shutdownAtUtc):'')+(x.operation.reason?' · '+x.operation.reason:''),x=>x.connectedUsers,x=>x.roomCount,x=>'']);
 
 for(const [index,item]of data.lobbies.entries()){
  const cell=document.getElementById('lobbies').rows[index].lastElementChild,configure=document.createElement('button');configure.textContent=item.operation.mode==='running'?'점검 설정':'점검 설정 변경';configure.disabled=modeBusy;configure.addEventListener('click',()=>openMode(item,false));cell.appendChild(configure);
@@ -76,11 +81,12 @@ for(const [index,item]of data.lobbies.entries()){
 table('rooms',data.rooms,[x=>x.name+' / '+x.id,x=>x.lobbyId,x=>state(x.state)+' / '+(x.trainingRunning?'훈련 진행 중':'훈련 대기'),process,x=>x.connectedUsers+' / '+x.maxUsers,x=>x.pendingUsers,x=>time(x.lifecycle?.startedAtUtc),x=>time(x.lifecycle?.stoppedAtUtc),failure]);
 const eventLabels={shutdown_scheduled:'종료 예약',shutdown_cancelled:'종료 해제',shutdown_completed:'예약 종료 완료 → 점검 중'};
 table('events',data.recentEvents,[x=>time(x.atUtc),x=>x.kind==='lobby'?'로비':'방',x=>x.lobbyId,x=>x.name+' / '+x.id,x=>eventLabels[x.action]||state(x.action),x=>x.reason||'—']);
-document.getElementById('summary').textContent='로비 '+data.lobbies.length+'개 · 방 '+data.rooms.length+'개 · 실행 프로그램 '+[...data.lobbies,...data.rooms].filter(x=>x.processRunning).length+'개 · 서버 가동 '+Math.floor(data.uptimeSeconds/60)+'분';
+document.getElementById('summary').textContent='로비 '+data.lobbies.length+'개 · 방 '+data.rooms.length+'개 · 실행 프로그램 '+data.rooms.filter(x=>x.processRunning).length+'개 · 서버 가동 '+Math.floor(data.uptimeSeconds/60)+'분';
 document.getElementById('message').textContent='갱신 완료: '+time(data.generatedAtUtc);
 document.getElementById('history').textContent=data.history.error?data.history.error:data.history.enabled?'운영 이력 파일 저장 사용 · 마지막 저장: '+time(data.history.savedAtUtc):'운영 이력 파일 저장 꺼짐 · 메모리에만 보관합니다.';
 }catch(error){document.getElementById('message').textContent=error.message+' 이전 표시 정보는 최신 상태가 아닐 수 있습니다.';}finally{loading=false;document.getElementById('refresh').disabled=false;}}
 document.getElementById('refresh').addEventListener('click',refresh);refresh();setInterval(refresh,5000);
 </script></body></html>
 """;
+    }
 }

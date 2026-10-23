@@ -42,7 +42,7 @@ $taskSettings['Operations__OpenBrowserOnStart']='false';$taskSettings['Operation
 $taskSettings['Operations__HistoryPath']=Join-Path $taskRun 'history.json';$taskSettings['SMART_TRAINING_SERVER_PROBE']='0'
 $taskOpsHeaders=@{'X-Operations-Request'='1';Origin=$taskApi};$taskRound=0
 function Ops {Invoke-RestMethod ($taskApi+'/api/operations')}
-function Mode([bool]$enabled,[string]$reason,[long]$revision){Invoke-RestMethod ($taskApi+'/api/operations/lobbies/sample-training/maintenance') -Method Post -Headers $taskOpsHeaders -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes((@{enabled=$enabled;reason=$reason;expectedRevision=$revision}|ConvertTo-Json -Compress)))}
+function Mode([bool]$enabled,[string]$reason,[long]$revision){Invoke-RestMethod ($taskApi+'/api/operations/lobbies/sample-training/mode') -Method Post -Headers $taskOpsHeaders -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes((@{mode=$(if($enabled){'maintenance'}else{'running'});atUtc=$null;reason=$reason;expectedRevision=$revision}|ConvertTo-Json -Compress)))}
 function Root { (Ops).lobbies|Where-Object {$_.id -eq 'sample-training'} }
 function Start-Api {
  $script:taskRound++;$dll=Join-Path $taskServerRoot 'bin/Debug/net8.0/Smart Training Server.dll'
@@ -71,7 +71,7 @@ try{
  $null=Send-Player 0 'join' $room 'sample-training';$null=Wait-Player 0 {param($s) $s.connected -and !$s.busy} 'Existing room member'
  $before=Ops;$lobbyPid=(Root).processId;$roomPid=$before.rooms[0].processId
  $on=Mode $true '멀티 접속 점검' 0
- Check ($on.success -and !$on.persistenceWarning -and $on.maintenance.revision -eq 1) 'local operator enables and persists maintenance'
+ Check ($on.success -and !$on.persistenceWarning -and $on.operation.revision -eq 1) 'local operator enables and persists maintenance'
  $status=Root
  Check ($status.maintenance.enabled -and $status.processId -eq $lobbyPid -and (Ops).rooms[0].processId -eq $roomPid -and $status.lifecycle.state -eq 'running') 'maintenance preserves existing lobby and room worker identities and lifecycle'
  $notice=Wait-Player 1 {param($s) @($s.lobbies|Where-Object {$_.id -eq 'sample-training' -and $_.isMaintenance -and $_.maintenanceReason -eq '멀티 접속 점검'}).Count -eq 1} 'Unity automatic maintenance notice'
@@ -93,10 +93,10 @@ try{
  Check ($stale -and (Root).maintenance.enabled) 'stale revision cannot undo current maintenance'
  $invalid=$false;try{$null=Mode $false ' ' 1}catch{$invalid=$_.Exception.Response.StatusCode.value__ -eq 400}
  Check $invalid 'operator must supply meaningful reason'
- $forbidden=$false;try{$null=Api-Post '/api/operations/lobbies/sample-training/maintenance' @{enabled=$false;reason='일반 요청';expectedRevision=1}}catch{$forbidden=$_.Exception.Response.StatusCode.value__ -eq 403}
+ $forbidden=$false;try{$null=Api-Post '/api/operations/lobbies/sample-training/mode' @{mode='running';atUtc=$null;reason='일반 요청';expectedRevision=1}}catch{$forbidden=$_.Exception.Response.StatusCode.value__ -eq 403}
  Check $forbidden 'ordinary authenticated API request cannot mutate maintenance without management header'
  $evil=@{'X-Operations-Request'='1';Origin='https://attacker.example'};$forbidden=$false
- try{$null=Invoke-RestMethod ($taskApi+'/api/operations/lobbies/sample-training/maintenance') -Method Post -Headers $evil -ContentType application/json -Body '{"enabled":false,"reason":"cross-origin","expectedRevision":1}'}catch{$forbidden=$_.Exception.Response.StatusCode.value__ -eq 403}
+ try{$null=Invoke-RestMethod ($taskApi+'/api/operations/lobbies/sample-training/mode') -Method Post -Headers $evil -ContentType application/json -Body '{"mode":"running","atUtc":null,"reason":"cross-origin","expectedRevision":1}'}catch{$forbidden=$_.Exception.Response.StatusCode.value__ -eq 403}
  Check $forbidden 'cross-origin management mutation is rejected'
  $off=Mode $false '접속 재개' 1
  $null=Wait-Player 1 {param($s) @($s.lobbies|Where-Object {$_.id -eq 'sample-training' -and !$_.isMaintenance}).Count -eq 1} 'Unity automatic release notice'
@@ -104,7 +104,7 @@ try{
  $null=Wait-Player 1 {param($s) !$s.busy -and $s.lobbyId -eq 'sample-training'} 'Admission after release'
  $null=Send-Player 1 'join' $room 'sample-training'
  $null=Wait-Player 1 {param($s) $s.connected -and !$s.busy -and @($s.participants).Count -eq 2} 'Room after release'
- Check ($off.maintenance.revision -eq 2 -and (Ops).rooms[0].processId -eq $roomPid) 'release permits previously blocked client to join original room without replacing server'
+ Check ($off.operation.revision -eq 2 -and (Ops).rooms[0].processId -eq $roomPid) 'release permits previously blocked client to join original room without replacing server'
  $null=Mode $true '재점검' 2
  $null=Wait-Player 0 {param($s) @($s.participants).Count -eq 2} 'Two existing participants'
  $null=Send-Player 0 'disconnect'

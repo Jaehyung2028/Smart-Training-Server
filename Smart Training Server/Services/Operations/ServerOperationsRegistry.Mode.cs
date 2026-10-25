@@ -3,36 +3,32 @@ namespace Smart_Training_Server.Services.Operations
 {
     // 로비의 통합 운영 상태입니다. with 표현식으로 필요한 값을 바꾼 새 record를 생성합니다.
     public sealed record LobbyOperatingMode(
-        string LobbyId,
-        string Mode,
-        string Reason,
-        DateTime? ShutdownAtUtc,
-        long Revision,
-        DateTime? ChangedAtUtc
-    );
-
+string LobbyId,
+string Mode,
+string Reason,
+DateTime? ShutdownAtUtc,
+long Revision,
+DateTime? ChangedAtUtc
+);
     // 운영 변경의 성공 여부·HTTP 상태·설명·반영 결과·파일 저장 경고를 묶습니다.
     public sealed record ModeChangeResult(
-        bool Success,
-        int StatusCode,
-        string Message,
-        LobbyOperatingMode? Operation = null,
-        string? PersistenceWarning = null
-    );
-
+bool Success,
+int StatusCode,
+string Message,
+LobbyOperatingMode? Operation = null,
+string? PersistenceWarning = null
+);
     // 기존 점검 조회 형식입니다. 실제 값은 통합 운영 모드에서 계산합니다.
     public sealed record LobbyMaintenance(string LobbyId, bool Enabled, string Reason, DateTime? ChangedAtUtc, long Revision);
-
     // 종료 예약의 대상·시각·사유·상태·버전입니다.
     public sealed record LobbyShutdown(
-        string LobbyId,
-        DateTime? AtUtc,
-        string Reason,
-        string State,
-        long Revision,
-        DateTime? ChangedAtUtc
-    );
-
+string LobbyId,
+DateTime? AtUtc,
+string Reason,
+string State,
+long Revision,
+DateTime? ChangedAtUtc
+);
     public sealed partial class ServerOperationsRegistry
     {
         // 로비별 통합 운영 모드입니다. 점검과 종료 예약 정보는 여기서 파생합니다.
@@ -48,14 +44,7 @@ namespace Smart_Training_Server.Services.Operations
         }
 
         // 운영 중·점검·예약 종료 중 하나로 바꿉니다. 입력·현재 버전 검사는 담당 서비스와 저장소에서 수행합니다.
-        public ModeChangeResult SetOperatingMode(
-            string id,
-            string name,
-            string mode,
-            string reason,
-            DateTime? at,
-            long expectedRevision
-        )
+        public ModeChangeResult SetOperatingMode(string id, string name, string mode, string reason, DateTime? at, long expectedRevision)
         {
             lock (gate)
             {

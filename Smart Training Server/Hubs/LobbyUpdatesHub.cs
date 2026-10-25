@@ -56,6 +56,7 @@ namespace Smart_Training_Server.Hubs
                 {
                     Success = result.Success,
                     Message = result.Message
+
                 };
             }
             finally
@@ -81,6 +82,7 @@ namespace Smart_Training_Server.Hubs
                 {
                     Success = result.Success,
                     Message = result.Message
+
                 };
             }
             finally
@@ -103,7 +105,10 @@ namespace Smart_Training_Server.Hubs
 
                 await updates.SynchronizeGroupsAsync(Groups);
                 await updates.SynchronizeRoomGroupsAsync(Groups);
-                return new BaseResponse { Success = true };
+                return new BaseResponse
+                {
+                    Success = true
+                };
             }
             finally
             {

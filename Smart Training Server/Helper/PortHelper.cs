@@ -5,6 +5,7 @@ namespace Smart_Training_Server.Helper
     {
         // 현재 방 서버에 배정된 포트 집합입니다. 선택·추가·제거는 모두 같은 잠금으로 보호합니다.
         private static readonly HashSet<int> usedPorts = new();
+
         // 동시에 같은 포트를 고르지 않도록 선택과 배정을 함께 보호합니다.
         private static readonly object portGate = new();
 

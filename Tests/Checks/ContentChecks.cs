@@ -84,6 +84,46 @@ internal static class ContentChecks
             ).Success,
             "reject nonexistent content"
         );
+        // 실제 생성 API가 사용하는 진입점에서 자식 선택과 초기 예약을 함께 확인합니다.
+        var child = first.Contents["sample-training"].Children[0];
+        var childRoom = rooms.CreateRoom(user.Id, new CreateRoomRequest
+        {
+            LobbyId = first.Id,
+            RoomName = "child-content-room",
+            ContentId = "sample-training",
+            ContentNodeId = child.Id,
+            MaxUsers = 2
+        });
+        Check(childRoom.Success && childRoom.Room!.Content.Id == child.Id &&
+            user.PendingRoomId == childRoom.Room.Id,
+            "public creation selects child content and reserves creator");
+        var childSummary = rooms.GetRoomByLobby(first.Id, childRoom.Room!.Id)!;
+        Check(childSummary.ContentId == "sample-training" && childSummary.ContentNodeId == child.Id &&
+            childSummary.ContentTitle == child.Title,
+            "room summary preserves root and selected node identity and title");
+        rooms.LeaveRoom(user.Id, new RoomMembershipRequest { LobbyId = first.Id, RoomId = childRoom.Room.Id });
+
+        child.Children.Add(new Smart_Training_Server.Models.ContentInfo
+        {
+            RootContent = "sample-training", Id = 999, ParentId = child.Id, Depth = 2, Title = "nested-content"
+        });
+        var nestedRoom = TestRoomSetup.Create(rooms, user.Id, new CreateRoomRequest
+        {
+            LobbyId = first.Id, RoomName = "nested-content-room", ContentId = "sample-training",
+            ContentNodeId = 999, MaxUsers = 2
+        });
+        Check(nestedRoom.Success && nestedRoom.Room!.Content.Id == 999, "create room from deeply nested content");
+        foreach (int invalidNode in new[] { -1, 98765, 11 })
+        {
+            var invalidNodeRoom = rooms.CreateRoom(user.Id, new CreateRoomRequest
+            {
+                LobbyId = first.Id, RoomName = "invalid-node-" + invalidNode,
+                ContentId = "sample-training", ContentNodeId = invalidNode, MaxUsers = 2
+            });
+            Check(!invalidNodeRoom.Success && user.PendingRoomId == "",
+                "reject missing negative or other root node without reservation " + invalidNode);
+        }
+
         var secondService = TestCatalogLobbies.FromCatalog(catalog, users);
         var second = TestCatalogLobbies.Get(secondService, "sample-training");
         first.Contents["sample-training"].Title = "changed";

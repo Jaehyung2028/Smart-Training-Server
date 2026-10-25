@@ -15,15 +15,9 @@ namespace Smart_Training_Server.Models
 
         // 방 생성 때 확보한 자리를 최초 JoinRoom 요청이 이어받기 전인지 나타냅니다.
         // 한 번 이어받은 뒤의 중복 입장 요청은 기존과 같이 거절합니다.
-        public bool AwaitingJoinRequest
-        {
-            get; set;
-        }
+        public bool AwaitingJoinRequest { get; set; }
 
         // 이 시각이 지나면 예약을 해제해 연결하지 않은 사용자가 자리를 계속 차지하지 못하게 합니다.
-        public DateTime ExpiresAtUtc
-        {
-            get; set;
-        }
+        public DateTime ExpiresAtUtc { get; set; }
     }
 }

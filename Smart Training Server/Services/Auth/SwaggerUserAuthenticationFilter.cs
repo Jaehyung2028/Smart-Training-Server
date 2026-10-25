@@ -11,8 +11,7 @@ namespace Smart_Training_Server.Services.Auth
         public void Apply(OpenApiOperation operation, OperationFilterContext context)
         {
             var metadata = context.ApiDescription.ActionDescriptor.EndpointMetadata;
-            bool refresh = context.MethodInfo.DeclaringType == typeof(Smart_Training_Server._Controllers.AuthController) &&
-                context.MethodInfo.Name == "Refresh";
+            bool refresh = context.MethodInfo.DeclaringType == typeof(Smart_Training_Server._Controllers.AuthController) && context.MethodInfo.Name == "Refresh";
             if (!refresh && (metadata.OfType<IAllowAnonymous>().Any() || !metadata.OfType<IAuthorizeData>().Any()))
             {
                 return;
@@ -22,7 +21,10 @@ namespace Smart_Training_Server.Services.Auth
             {
                 new()
                 {
-                    [new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } }] = Array.Empty<string>()
+                    [new OpenApiSecurityScheme { Reference = new OpenApiReference {
+                            Type = ReferenceType.SecurityScheme,
+                            Id = "Bearer"
+                        } }] = Array.Empty<string>()
                 }
             };
         }

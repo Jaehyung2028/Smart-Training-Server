@@ -1,4 +1,4 @@
-// 공통 API 오류 응답 객체입니다. 클라이언트가 사용할 결과 형식을 정의합니다. BaseResponse를 상속하는 응답은 공통 성공 여부와 메시지도 포함합니다.
+// 공통 API 오류 응답 객체입니다.
 namespace Smart_Training_Server.Responses.Base
 {
     public sealed class ApiErrorResponse : BaseResponse
@@ -35,6 +35,7 @@ namespace Smart_Training_Server.Responses.Base
                     415 => "JSON 형식으로 요청해주세요.",
                     _ => status >= 500 ? "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요." : "요청을 처리하지 못했습니다."
                 }
+
             };
         }
     }

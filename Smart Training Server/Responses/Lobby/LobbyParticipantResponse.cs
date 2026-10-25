@@ -1,4 +1,4 @@
-// 로비 참가자 응답 객체입니다. 클라이언트가 사용할 결과 형식을 정의합니다. BaseResponse를 상속하는 응답은 공통 성공 여부와 메시지도 포함합니다.
+// 로비 참가자 응답 객체입니다.
 // init 전용 조회 데이터이므로 record의 값 비교를 사용합니다. JSON 구조는 기존과 같습니다.
 namespace Smart_Training_Server.Responses.Lobby
 {
@@ -20,15 +20,9 @@ namespace Smart_Training_Server.Responses.Lobby
         public string RoomName { get; init; } = "";
 
         // 이 참가자가 현재 방장인지 나타냅니다.
-        public bool IsRoomMaster
-        {
-            get; init;
-        }
+        public bool IsRoomMaster { get; init; }
 
         // 참가자가 속한 방이 훈련 진행 중인지 나타냅니다.
-        public bool RoomIsRunning
-        {
-            get; init;
-        }
+        public bool RoomIsRunning { get; init; }
     }
 }

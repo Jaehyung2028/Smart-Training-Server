@@ -2,21 +2,19 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using Smart_Training_Server.Models;
 
-// 콘텐츠 JSON을 읽고 트리 구조를 검사합니다. 파일 읽기와 로비 프로세스 실행은 별도 책임입니다.
+// 콘텐츠 JSON을 읽고 트리 구조를 검사합니다. 최상위 콘텐츠로 고정 로비를 구성하며, Unity 방 서버 실행은 RoomService가 담당합니다.
 namespace Smart_Training_Server.Services
 {
     public class ContentService
     {
         private readonly string catalogPath;
+
         private readonly ILogger<ContentService>? logger;
 
         // 생성자입니다. 이 객체를 만드는 데 필요한 서비스나 설정을 전달받아 초기화합니다.
         public ContentService(string? contentsDirectory = null, ILogger<ContentService>? logger = null)
         {
-            catalogPath = Path.Combine(
-                contentsDirectory ?? Path.Combine(AppContext.BaseDirectory, "Contents"),
-                "catalog.json"
-            );
+            catalogPath = Path.Combine(contentsDirectory ?? Path.Combine(AppContext.BaseDirectory, "Contents"), "catalog.json");
             this.logger = logger;
         }
 
@@ -30,10 +28,7 @@ namespace Smart_Training_Server.Services
                     throw new InvalidDataException("Contents/catalog.json 파일이 없습니다.");
                 }
 
-                var roots = JsonSerializer.Deserialize<List<ContentInfo>>(
-                    File.ReadAllText(catalogPath),
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-                ) ?? throw new InvalidDataException("콘텐츠 목록은 JSON 배열이어야 합니다.");
+                var roots = JsonSerializer.Deserialize<List<ContentInfo>>(File.ReadAllText(catalogPath), new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? throw new InvalidDataException("콘텐츠 목록은 JSON 배열이어야 합니다.");
                 if (roots.Count == 0)
                 {
                     throw new InvalidDataException("콘텐츠 목록이 비어 있습니다.");
@@ -57,7 +52,7 @@ namespace Smart_Training_Server.Services
 
                 return contents;
             }
-            catch (Exception ex) when (ex is JsonException or InvalidDataException or IOException or UnauthorizedAccessException)
+            catch (Exception ex)when (ex is JsonException or InvalidDataException or IOException or UnauthorizedAccessException)
             {
                 logger?.LogError(ex, "콘텐츠 목록을 읽지 못했습니다.");
                 throw new InvalidDataException("콘텐츠 목록을 읽지 못했습니다. Contents/catalog.json을 확인해주세요.", ex);

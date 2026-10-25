@@ -13,6 +13,7 @@ namespace Smart_Training_Server._Controllers
     public sealed class OperationsController : ControllerBase
     {
         private readonly ServerOperationsService operations;
+
         private readonly LobbyOperatingModeService? operatingModes;
 
         // 생성에 필요한 값을 전달받아 초기화합니다.
@@ -47,11 +48,7 @@ namespace Smart_Training_Server._Controllers
             // 전달 헤더나 다른 출처의 브라우저 요청을 그대로 신뢰하지 않습니다.
             if (Request.Headers.TryGetValue("Origin", out var origin) &&
                 (origin.Count != 1 ||
-                !string.Equals(
-                origin[0],
-                Request.Scheme + "://" + Request.Host,
-                StringComparison.OrdinalIgnoreCase
-            )))
+                !string.Equals(origin[0], Request.Scheme + "://" + Request.Host, StringComparison.OrdinalIgnoreCase)))
             {
                 return false;
             }
@@ -69,14 +66,7 @@ namespace Smart_Training_Server._Controllers
             Response.Headers.CacheControl = "no-store";
             if (!IsLocalRequest())
             {
-                return StatusCode(
-                    403,
-                    ApiErrorResponse.Create(
-                    403,
-                    HttpContext.TraceIdentifier,
-                    "운영 상태는 서버 PC의 localhost에서만 조회할 수 있습니다."
-                )
-                );
+                return StatusCode(403, ApiErrorResponse.Create(403, HttpContext.TraceIdentifier, "운영 상태는 서버 PC의 localhost에서만 조회할 수 있습니다."));
             }
 
             return Ok(operations.GetSnapshot());
@@ -94,14 +84,7 @@ namespace Smart_Training_Server._Controllers
             Response.Headers.ContentSecurityPolicy = "frame-ancestors 'none'";
             if (!IsLocalRequest())
             {
-                return StatusCode(
-                    403,
-                    ApiErrorResponse.Create(
-                    403,
-                    HttpContext.TraceIdentifier,
-                    "운영 화면은 서버 PC의 localhost에서 열어주세요."
-                )
-                );
+                return StatusCode(403, ApiErrorResponse.Create(403, HttpContext.TraceIdentifier, "운영 화면은 서버 PC의 localhost에서 열어주세요."));
             }
 
             return Content(OperationsPage.Html, "text/html; charset=utf-8");
@@ -119,14 +102,7 @@ namespace Smart_Training_Server._Controllers
             Response.Headers.CacheControl = "no-store";
             if (!IsLocalRequest() || Request.Headers["X-Operations-Request"] != "1")
             {
-                return StatusCode(
-                    403,
-                    ApiErrorResponse.Create(
-                    403,
-                    HttpContext.TraceIdentifier,
-                    "운영 설정은 서버 PC의 운영 페이지에서 변경해주세요."
-                )
-                );
+                return StatusCode(403, ApiErrorResponse.Create(403, HttpContext.TraceIdentifier, "운영 설정은 서버 PC의 운영 페이지에서 변경해주세요."));
             }
 
             if (request.ExpectedRevision == null)
@@ -139,22 +115,8 @@ namespace Smart_Training_Server._Controllers
                 return StatusCode(503);
             }
 
-            var result = operatingModes.SetOperatingMode(
-                lobbyId,
-                request.Mode,
-                request.AtUtc,
-                request.Reason,
-                request.ExpectedRevision.Value
-            );
-            return result.Success ? Ok(result) : StatusCode(
-                result.StatusCode,
-                ApiErrorResponse.Create(
-                result.StatusCode,
-                HttpContext.TraceIdentifier,
-                result.Message
-            )
-            );
+            var result = operatingModes.SetOperatingMode(lobbyId, request.Mode, request.AtUtc, request.Reason, request.ExpectedRevision.Value);
+            return result.Success ? Ok(result) : StatusCode(result.StatusCode, ApiErrorResponse.Create(result.StatusCode, HttpContext.TraceIdentifier, result.Message));
         }
-
     }
 }

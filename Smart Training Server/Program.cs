@@ -24,8 +24,8 @@ builder.Services.AddTrainingOptions(builder.Configuration);
 // HTTP 요청·응답 외에 연결을 유지하며 변경 알림과 서버 보고를 주고받을 SignalR 기능을 등록합니다.
 builder.Services.AddSignalR();
 builder.Services.AddAuthentication(UserTokenAuthenticationHandler.SchemeName).AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, UserTokenAuthenticationHandler>(UserTokenAuthenticationHandler.SchemeName, _ =>
-{
-});
+    {
+    });
 builder.Services.AddAuthorization();
 // Singleton은 요청마다 새로 만들지 않고 공유합니다. 사용자·로비·방 상태는 현재 API 프로세스의 메모리에 유지됩니다.
 builder.Services.AddSingleton<UserService>();
@@ -35,14 +35,11 @@ builder.Services.AddSingleton<LobbyService>();
 builder.Services.AddSingleton<LobbyOperatingModeService>();
 builder.Services.AddHostedService<LobbyShutdownWorker>();
 builder.Services.AddSingleton<ServerOperationsRegistry>(services =>
-{
+    {
     var settings = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<OperationsOptions>>().Value;
-    string? path = settings.PersistHistory && builder.Configuration["SMART_TRAINING_SERVER_PROBE"] != "1" ? Path.GetFullPath(
-        settings.HistoryPath,
-        builder.Environment.ContentRootPath
-    ) : null;
+    string? path = settings.PersistHistory && builder.Configuration["SMART_TRAINING_SERVER_PROBE"] != "1" ? Path.GetFullPath(settings.HistoryPath, builder.Environment.ContentRootPath) : null;
     return new(path, services.GetRequiredService<ILogger<ServerOperationsRegistry>>());
-});
+    });
 builder.Services.AddSingleton<ServerOperationsService>();
 builder.Services.AddHostedService<OperationsHistoryWriter>();
 builder.Services.AddSingleton<IOperationsBrowserOpener, OperationsBrowserOpener>();
@@ -54,28 +51,30 @@ builder.Services.AddSingleton<IRoomServerProcessManager>(services => new RoomSer
 // HostedService는 요청과 별개로 실행되며, 종료된 Unity 서버와 만료된 입장 예약을 주기적으로 정리합니다.
 builder.Services.AddHostedService<RoomServerMonitorService>();
 builder.Services.AddHostedService<RoomReservationCleanupService>();
-builder.Services.AddSingleton<ContentService>(services => new ContentService(
-    builder.Configuration["Contents:Directory"],
-    services.GetRequiredService<ILogger<ContentService>>()
-));
+builder.Services.AddSingleton<ContentService>(services => new ContentService(builder.Configuration["Contents:Directory"], services.GetRequiredService<ILogger<ContentService>>()));
 builder.Services.AddSingleton<RoomServerConnectionRegistry>();
 // Swagger에서 API 구조를 확인하고 요청을 실행할 수 있도록 설정합니다.
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
-{
+    {
     options.AddSecurityDefinition(
         "Bearer",
-        new Microsoft.OpenApi.Models.OpenApiSecurityScheme { Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http, Scheme = "bearer", BearerFormat = "Opaque", Description = "로그인 응답의 accessToken만 입력해주세요." }
+        new Microsoft.OpenApi.Models.OpenApiSecurityScheme {
+            Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "Opaque",
+            Description = "로그인 응답의 accessToken만 입력해주세요."
+        }
     );
     options.OperationFilter<SwaggerUserAuthenticationFilter>();
-});
+    });
 // 지금까지 등록한 설정과 서비스를 바탕으로 실제 웹 애플리케이션을 만듭니다.
 var app = builder.Build();
 app.Lifetime.ApplicationStarted.Register(() =>
-{
+    {
     var roomOptions = app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<RoomOptions>>().Value;
     Smart_Training_Server.Helper.NetworkHelper.WriteConnectionInfo(apiPort, roomOptions.AdvertisedAddress);
-});
+    });
 // 카탈로그의 고정 로비 목록을 구성합니다. 로비 소속은 ASP.NET이 관리하며 별도 Unity 로비 프로세스는 없습니다.
 app.Services.GetRequiredService<LobbyService>().InitializeCatalogLobbies();
 app.UseTrainingApiErrors();
@@ -97,7 +96,7 @@ app.UseAuthorization();
 app.MapControllers();
 // API 종료 시 운영 기록을 마무리하고, 이 API가 실행해 관리하던 Unity 프로세스도 정리합니다.
 app.Lifetime.ApplicationStopping.Register(() =>
-{
+    {
     try
     {
         app.Services.GetRequiredService<ServerOperationsRegistry>().CompleteSession();
@@ -106,5 +105,5 @@ app.Lifetime.ApplicationStopping.Register(() =>
     {
         Smart_Training_Server.Helper.ProcessHelper.KillAll();
     }
-});
+    });
 app.Run();

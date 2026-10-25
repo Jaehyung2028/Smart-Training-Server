@@ -3,7 +3,6 @@ namespace Smart_Training_Server.Services.Room
 {
     // 잠금 안에서 정한 해제 통지 대상입니다. 연결 ID·사용자·입장 토큰만 수집한 뒤 실제 전송은 잠금 밖에서 합니다.
     internal sealed record RoomDisconnectNotice(string ConnectionId, string UserId, string AdmissionToken);
-
     public partial class RoomService
     {
         // 사용자의 예약·실제 소속을 제거하고 방장 위임·빈 방 삭제를 처리합니다. 네트워크 통지는 반환된 목록을 통해 잠금 밖에서 합니다.

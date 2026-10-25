@@ -13,9 +13,6 @@ namespace Smart_Training_Server.Requests.Room
         public string RoomName { get; set; } = string.Empty;
 
         // 방 최대 정원입니다. 실제 인원과 입장 예약을 포함한 조건은 서비스에서 검사합니다.
-        public int? MaxUsers
-        {
-            get; set;
-        }
+        public int? MaxUsers { get; set; }
     }
 }

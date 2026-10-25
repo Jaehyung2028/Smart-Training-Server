@@ -12,7 +12,9 @@ namespace Smart_Training_Server.Services.Lobby
     public sealed partial class LobbyRoomUpdates
     {
         private readonly LobbyService lobbies;
+
         private readonly UserService users;
+
         private readonly RoomService rooms;
 
         // 생성에 필요한 값을 전달받아 초기화합니다.
@@ -33,16 +35,10 @@ namespace Smart_Training_Server.Services.Lobby
             }
 
             // 대상 또는 소속 로비의 ID입니다.
-            public string LobbyId
-            {
-                get;
-            }
+            public string LobbyId { get; }
 
             // 구독 사용자의 인증 토큰입니다. 현재 유효성과 소속을 확인할 때 사용합니다.
-            public string Token
-            {
-                get;
-            }
+            public string Token { get; }
 
             // 새 연결은 기존 목록이 같아도 처음 한 번 변경 알림을 받습니다.
             public bool NeedsSnapshot { get; set; } = true;
@@ -50,15 +46,14 @@ namespace Smart_Training_Server.Services.Lobby
 
         // 공개 응답은 불변 record이므로 JSON 문자열을 만들지 않고 값으로 비교할 수 있습니다.
         private sealed record ListingSnapshot(
-            IReadOnlyList<LobbySummaryResponse> Lobbies,
-            IReadOnlyList<RoomSummaryResponse> Rooms,
-            IReadOnlyList<LobbyParticipantResponse> Participants)
+IReadOnlyList<LobbySummaryResponse> Lobbies,
+IReadOnlyList<RoomSummaryResponse> Rooms,
+IReadOnlyList<LobbyParticipantResponse> Participants
+)
         {
             public bool HasSameValues(ListingSnapshot other)
             {
-                return Lobbies.SequenceEqual(other.Lobbies) &&
-                    Rooms.SequenceEqual(other.Rooms) &&
-                    Participants.SequenceEqual(other.Participants);
+                return Lobbies.SequenceEqual(other.Lobbies) && Rooms.SequenceEqual(other.Rooms) && Participants.SequenceEqual(other.Participants);
             }
         }
 
@@ -73,6 +68,7 @@ namespace Smart_Training_Server.Services.Lobby
 
         // 실제 SignalR에 등록한 그룹입니다. 구독 정보와 비교해 이전 그룹을 제거할 때 사용합니다.
         private readonly Dictionary<string, string> registeredGroups = new();
+
         private readonly Dictionary<string, string> registeredRoomGroups = new();
 
         public static string GetGroupName(string lobbyId)
@@ -87,10 +83,7 @@ namespace Smart_Training_Server.Services.Lobby
             Dictionary<string, string> desired;
             lock (users.MembershipLock)
             {
-                desired = subscriptions
-                    .Where(pair => groupName == null || GetGroupName(pair.Value.LobbyId) == groupName)
-                    .Where(pair => GetSubscribedUser(pair.Value) != null)
-                    .ToDictionary(pair => pair.Key, pair => GetGroupName(pair.Value.LobbyId));
+                desired = subscriptions.Where(pair => groupName == null || GetGroupName(pair.Value.LobbyId) == groupName).Where(pair => GetSubscribedUser(pair.Value) != null).ToDictionary(pair => pair.Key, pair => GetGroupName(pair.Value.LobbyId));
             }
 
             await ApplyGroupsAsync(groups, registeredGroups, desired, groupName);
@@ -135,7 +128,8 @@ namespace Smart_Training_Server.Services.Lobby
             IGroupManager groups,
             Dictionary<string, string> registered,
             Dictionary<string, string> desired,
-            string? groupName)
+            string? groupName
+        )
         {
             foreach (var pair in registered.Where(pair => groupName == null || pair.Value == groupName).ToArray())
             {
@@ -223,7 +217,7 @@ namespace Smart_Training_Server.Services.Lobby
             {
                 var result = new List<(string, string, bool)>();
                 var active = new List<(string Id, Subscription Subscription, string UserId)>();
-                foreach (var (id, subscription) in subscriptions.ToArray())
+                foreach (var(id, subscription)in subscriptions.ToArray())
                 {
                     var user = GetSubscribedUser(subscription);
                     if (user == null)
@@ -253,7 +247,8 @@ namespace Smart_Training_Server.Services.Lobby
                     var snapshot = new ListingSnapshot(
                         lobbyRows,
                         lobbyId.Length == 0 ? [] : rooms.GetRoomsByLobby(lobbyId) ?? [],
-                        lobbyId.Length == 0 ? [] : rooms.GetLobbyParticipants(lobbyId, group.First().UserId).Participants);
+                        lobbyId.Length == 0 ? [] : rooms.GetLobbyParticipants(lobbyId, group.First().UserId).Participants
+                    );
                     bool changed = !lastSnapshots.TryGetValue(lobbyId, out var previous) || !snapshot.HasSameValues(previous);
                     foreach (var item in group)
                     {
@@ -281,7 +276,9 @@ namespace Smart_Training_Server.Services.Lobby
     public sealed class LobbyRoomUpdatesService : BackgroundService
     {
         private readonly LobbyRoomUpdates updates;
+
         private readonly IHubContext<LobbyUpdatesHub> hub;
+
         private readonly ILogger<LobbyRoomUpdatesService> logger;
 
         // 생성에 필요한 값을 전달받아 초기화합니다.
@@ -314,17 +311,15 @@ namespace Smart_Training_Server.Services.Lobby
                         await updates.SynchronizeRoomGroupsAsync(hub.Groups);
                         foreach (var change in changes.Where(change => change.Ended))
                         {
-                            await hub.Clients.Client(change.ConnectionId).SendAsync(
-                                "SubscriptionEnded", change.LobbyId, cancellationToken: stoppingToken);
+                            await hub.Clients.Client(change.ConnectionId).SendAsync("SubscriptionEnded", change.LobbyId, cancellationToken: stoppingToken);
                         }
 
                         foreach (var lobbyId in changes.Where(change => !change.Ended).Select(change => change.LobbyId).Distinct())
                         {
-                            await hub.Clients.Group(LobbyRoomUpdates.GetGroupName(lobbyId)).SendAsync(
-                                "RoomsChanged", lobbyId, cancellationToken: stoppingToken);
+                            await hub.Clients.Group(LobbyRoomUpdates.GetGroupName(lobbyId)).SendAsync("RoomsChanged", lobbyId, cancellationToken: stoppingToken);
                         }
                     }
-                    catch (Exception error) when (!stoppingToken.IsCancellationRequested)
+                    catch (Exception error)when (!stoppingToken.IsCancellationRequested)
                     {
                         updates.InvalidateSnapshots();
                         logger.LogWarning(error, "로비 그룹 갱신 또는 알림 전송에 실패했습니다.");
@@ -335,7 +330,7 @@ namespace Smart_Training_Server.Services.Lobby
                     }
                 }
             }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            catch (OperationCanceledException)when (stoppingToken.IsCancellationRequested)
             {
             }
         }

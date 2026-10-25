@@ -8,50 +8,46 @@ namespace Smart_Training_Server.Services.Operations
 {
     // 운영 표 한 행입니다. 논리 상태·인원과 실제 프로세스 PID·생존 여부를 함께 표시합니다.
     public sealed record OperationalServer(
-        string Kind,
-        string Id,
-        string LobbyId,
-        string Name,
-        string State,
-        int ConnectedUsers,
-        int PendingUsers,
-        int RoomCount,
-        int? MaxUsers,
-        bool TrainingRunning,
-        int? ProcessId,
-        bool ProcessRunning,
-        ProcessLifecycle? Lifecycle,
-        LobbyMaintenance? Maintenance = null,
-        LobbyShutdown? Shutdown = null,
-        LobbyOperatingMode? Operation = null
-    );
-
+string Kind,
+string Id,
+string LobbyId,
+string Name,
+string State,
+int ConnectedUsers,
+int PendingUsers,
+int RoomCount,
+int? MaxUsers,
+bool TrainingRunning,
+int? ProcessId,
+bool ProcessRunning,
+ProcessLifecycle? Lifecycle,
+LobbyMaintenance? Maintenance = null,
+LobbyShutdown? Shutdown = null,
+LobbyOperatingMode? Operation = null
+);
     // 한 번의 운영 조회 결과입니다. 조회 시각·가동 시간·로비·방·최근 이벤트·저장 상태를 묶습니다.
     public sealed record ServerOperationsSnapshot(
-        DateTime GeneratedAtUtc,
-        DateTime StartedAtUtc,
-        double UptimeSeconds,
-        IReadOnlyList<OperationalServer> Lobbies,
-        IReadOnlyList<OperationalServer> Rooms,
-        IReadOnlyList<ProcessLifecycle> RecentProcesses,
-        IReadOnlyList<ServerOperationEvent> RecentEvents,
-        OperationsHistoryStatus History
-    );
-
+DateTime GeneratedAtUtc,
+DateTime StartedAtUtc,
+double UptimeSeconds,
+IReadOnlyList<OperationalServer> Lobbies,
+IReadOnlyList<OperationalServer> Rooms,
+IReadOnlyList<ProcessLifecycle> RecentProcesses,
+IReadOnlyList<ServerOperationEvent> RecentEvents,
+OperationsHistoryStatus History
+);
     public sealed class ServerOperationsService
     {
         private readonly RoomService rooms;
+
         private readonly UserService users;
+
         private readonly LobbyService lobbies;
+
         private readonly ServerOperationsRegistry registry;
 
         // 생성에 필요한 값을 전달받아 초기화합니다.
-        public ServerOperationsService(
-            UserService users,
-            LobbyService lobbies,
-            RoomService rooms,
-            ServerOperationsRegistry registry
-        )
+        public ServerOperationsService(UserService users, LobbyService lobbies, RoomService rooms, ServerOperationsRegistry registry)
         {
             this.rooms = rooms;
             this.users = users;

@@ -1,4 +1,4 @@
-// 현재 사용자 상태 응답 객체입니다. 클라이언트가 사용할 결과 형식을 정의합니다. BaseResponse를 상속하는 응답은 공통 성공 여부와 메시지도 포함합니다.
+// 현재 사용자 상태 응답 객체입니다.
 namespace Smart_Training_Server.Responses.Auth
 {
     public sealed class CurrentUserResponse
@@ -16,10 +16,7 @@ namespace Smart_Training_Server.Responses.Auth
         public string CurrentLobbyName { get; init; } = string.Empty;
 
         // 로비 자리 번호입니다. 미배정은 -1로 표현합니다.
-        public int LobbyIndex
-        {
-            get; init;
-        }
+        public int LobbyIndex { get; init; }
 
         // 접속이 확인된 현재 방 ID입니다.
         public string CurrentRoomId { get; init; } = string.Empty;
@@ -28,10 +25,7 @@ namespace Smart_Training_Server.Responses.Auth
         public string CurrentRoomName { get; init; } = string.Empty;
 
         // 방 자리 번호입니다. 현재 소속과 함께 해석합니다.
-        public int RoomIndex
-        {
-            get; init;
-        }
+        public int RoomIndex { get; init; }
 
         // 입장 예약 중인 방입니다. 실제 접속이 확정된 방과 구분합니다.
         public string PendingRoomId { get; init; } = string.Empty;

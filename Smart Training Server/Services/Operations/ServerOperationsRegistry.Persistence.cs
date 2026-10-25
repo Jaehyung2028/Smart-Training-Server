@@ -6,26 +6,31 @@ namespace Smart_Training_Server.Services.Operations
 {
     // 운영 이력 저장 사용 여부·마지막 저장 시각·저장 오류를 화면에 전달합니다.
     public sealed record OperationsHistoryStatus(bool Enabled, DateTime? SavedAtUtc, string? Error);
-
     public sealed partial class ServerOperationsRegistry
     {
         // 파일에 기록하는 운영 이력 형식입니다. 과거 형식의 점검·종료 필드도 복원 호환용으로 남겨 둡니다.
         private sealed record SavedHistory(
-            int Version,
-            ProcessLifecycle[] Processes,
-            ServerOperationEvent[] Events,
-            LobbyMaintenance[]? Maintenance = null,
-            LobbyShutdown[]? Shutdowns = null,
-            LobbyOperatingMode[]? Modes = null
-        );
+int Version,
+ProcessLifecycle[] Processes,
+ServerOperationEvent[] Events,
+LobbyMaintenance[]? Maintenance = null,
+LobbyShutdown[]? Shutdowns = null,
+LobbyOperatingMode[]? Modes = null
+);
 
         // 운영 이력 파일 쓰기가 서로 겹치지 않도록 저장 절차를 직렬화하는 잠금입니다.
         private readonly object fileGate = new();
+
         private readonly string? historyFile;
+
         private readonly ILogger<ServerOperationsRegistry> logger;
+
         private long revision, savedRevision = -1;
+
         private bool closing;
+
         private DateTime? savedAtUtc;
+
         private string? historyError;
 
         // 생성자입니다. 이 객체를 만드는 데 필요한 서비스나 설정을 전달받아 초기화합니다.
@@ -181,7 +186,7 @@ namespace Smart_Training_Server.Services.Operations
                 savedAtUtc = File.GetLastWriteTimeUtc(historyFile!);
                 savedRevision = revision == 0 ? 0 : -1;
             }
-            catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidDataException)
+            catch (Exception error)when (error is IOException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidDataException)
             {
                 processes.Clear();
                 events.Clear();
@@ -192,7 +197,7 @@ namespace Smart_Training_Server.Services.Operations
                 {
                     File.Copy(historyFile!, historyFile + ".invalid-" + DateTime.UtcNow.Ticks, false);
                 }
-                catch (Exception backupError) when (backupError is IOException or UnauthorizedAccessException)
+                catch (Exception backupError)when (backupError is IOException or UnauthorizedAccessException)
                 {
                     logger.LogWarning(backupError, "Operations history invalid-file preservation failed");
                 }
@@ -242,7 +247,7 @@ namespace Smart_Training_Server.Services.Operations
                         historyError = null;
                     }
                 }
-                catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+                catch (Exception error)when (error is IOException or UnauthorizedAccessException)
                 {
                     lock (gate)
                     {
@@ -296,7 +301,7 @@ namespace Smart_Training_Server.Services.Operations
                     registry.FlushHistory();
                 }
             }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            catch (OperationCanceledException)when (stoppingToken.IsCancellationRequested)
             {
             }
         }

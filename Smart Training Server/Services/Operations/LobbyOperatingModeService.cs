@@ -8,17 +8,15 @@ namespace Smart_Training_Server.Services.Operations
     public sealed class LobbyOperatingModeService
     {
         private readonly UserService users;
+
         private readonly LobbyService lobbies;
+
         private readonly RoomService rooms;
+
         private readonly ServerOperationsRegistry registry;
 
         // 생성에 필요한 값을 전달받아 초기화합니다.
-        public LobbyOperatingModeService(
-            UserService users,
-            LobbyService lobbies,
-            RoomService rooms,
-            ServerOperationsRegistry registry
-        )
+        public LobbyOperatingModeService(UserService users, LobbyService lobbies, RoomService rooms, ServerOperationsRegistry registry)
         {
             this.users = users;
             this.lobbies = lobbies;
@@ -27,13 +25,7 @@ namespace Smart_Training_Server.Services.Operations
         }
 
         // 운영 중·점검·예약 종료 중 하나로 바꿉니다. 입력·현재 버전 검사는 담당 서비스와 저장소에서 수행합니다.
-        public ModeChangeResult SetOperatingMode(
-            string id,
-            string? mode,
-            DateTimeOffset? at,
-            string? reason,
-            long expectedRevision
-        )
+        public ModeChangeResult SetOperatingMode(string id, string? mode, DateTimeOffset? at, string? reason, long expectedRevision)
         {
             ModeChangeResult result;
             lock (users.MembershipLock)
@@ -109,6 +101,7 @@ namespace Smart_Training_Server.Services.Operations
     public sealed class LobbyShutdownWorker : BackgroundService
     {
         private readonly LobbyOperatingModeService service;
+
         private readonly ILogger<LobbyShutdownWorker> logger;
 
         // 생성에 필요한 값을 전달받아 초기화합니다.
@@ -137,7 +130,7 @@ namespace Smart_Training_Server.Services.Operations
                 }
                 while (await timer.WaitForNextTickAsync(stoppingToken));
             }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            catch (OperationCanceledException)when (stoppingToken.IsCancellationRequested)
             {
             }
         }

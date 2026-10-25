@@ -15,6 +15,7 @@ namespace Smart_Training_Server.Services.Auth
 
         // 사용자 ID → 사용자 정보 저장소입니다. API를 다시 시작하면 메모리의 사용자 정보는 사라집니다.
         private readonly ConcurrentDictionary<string, UserInfo> users = new();
+
         private readonly AuthOptions authOptions;
 
         // 생성자입니다. 이 객체를 만드는 데 필요한 서비스나 설정을 전달받아 초기화합니다.
@@ -53,6 +54,7 @@ namespace Smart_Training_Server.Services.Auth
             {
                 Id = Guid.NewGuid().ToString(),
                 Name = userName
+
             };
             if (!users.TryAdd(user.Id, user))
             {
@@ -82,11 +84,13 @@ namespace Smart_Training_Server.Services.Auth
                 {
                     Success = false,
                     Message = "닉네임을 입력해주세요."
+
                 };
             }
 
             // 2. 닉네임 길이 검사
-            if (request.UserName.Length < authOptions.NameMinLength || request.UserName.Length > authOptions.NameMaxLength)
+            if (request.UserName.Length < authOptions.NameMinLength ||
+                request.UserName.Length > authOptions.NameMaxLength)
             {
                 return new LoginResponse
                 {
@@ -102,6 +106,7 @@ namespace Smart_Training_Server.Services.Auth
                 {
                     Success = false,
                     Message = "이미 사용 중인 닉네임입니다."
+
                 };
             }
 
@@ -112,6 +117,7 @@ namespace Smart_Training_Server.Services.Auth
                 {
                     Success = false,
                     Message = "사용자 생성에 실패했습니다."
+
                 };
             }
 
@@ -124,6 +130,7 @@ namespace Smart_Training_Server.Services.Auth
                 User = user,
                 AccessToken = session.Token,
                 ExpiresAtUtc = session.ExpiresAtUtc
+
             };
         }
 
@@ -144,6 +151,7 @@ namespace Smart_Training_Server.Services.Auth
                     CurrentRoomName = user.CurrentRoomName,
                     RoomIndex = user.RoomIndex,
                     PendingRoomId = user.PendingRoomId
+
                 };
             }
         }

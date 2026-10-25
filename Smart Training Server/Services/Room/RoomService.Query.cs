@@ -38,6 +38,7 @@ namespace Smart_Training_Server.Services.Room
                 LobbyId = room.LobbyId,
                 Name = room.Name,
                 ContentId = room.Content.RootContent,
+                ContentNodeId = room.Content.Id,
                 ContentTitle = room.Content.Title,
                 MaxUsers = room.MaxUsers,
                 ConnectedUsers = room.Users.Count,
@@ -49,6 +50,7 @@ namespace Smart_Training_Server.Services.Room
                 IsRunning = room.IsRunning,
                 State = room.State,
                 CreatedAt = room.CreatedAt
+
             };
         }
 
@@ -86,45 +88,39 @@ namespace Smart_Training_Server.Services.Room
                         room.Users.ContainsKey(user.Id) &&
                         connectedTokens.ContainsKey(user.Id))
                     {
-                        result.Add(new()
-                        {
-                            UserId = user.Id,
-                            Nickname = user.Name,
-                            ConnectionState = "connected",
-                            RoomId = room.Id,
-                            RoomName = room.Name,
-                            IsRoomMaster = room.MasterUserId == user.Id,
-                            RoomIsRunning = room.IsRunning
-                        });
+                        result.Add(new() {
+                                UserId = user.Id,
+                                Nickname = user.Name,
+                                ConnectionState = "connected",
+                                RoomId = room.Id,
+                                RoomName = room.Name,
+                                IsRoomMaster = room.MasterUserId == user.Id,
+                                RoomIsRunning = room.IsRunning
+                            });
                     }
                     else if (reservations.TryGetValue(user.Id, out var reservation) &&
-                        FindById(reservation.RoomId) is { } pending &&
+                        FindById(reservation.RoomId)is { } pending &&
                         pending.LobbyId == lobbyId &&
                         !pending.IsClosing)
                     {
-                        result.Add(new()
-                        {
-                            UserId = user.Id,
-                            Nickname = user.Name,
-                            ConnectionState = "reserved",
-                            RoomId = pending.Id,
-                            RoomName = pending.Name
-                        });
+                        result.Add(new() {
+                                UserId = user.Id,
+                                Nickname = user.Name,
+                                ConnectionState = "reserved",
+                                RoomId = pending.Id,
+                                RoomName = pending.Name
+                            });
                     }
                     else
                     {
-                        result.Add(new()
-                        {
-                            UserId = user.Id,
-                            Nickname = user.Name
-                        });
+                        result.Add(new() {
+                                UserId = user.Id,
+                                Nickname = user.Name
+                            });
                     }
                 }
 
-                return (200, result.OrderBy(
-                    item => item.Nickname,
-                    StringComparer.OrdinalIgnoreCase
-                ).ThenBy(item => item.UserId, StringComparer.Ordinal).ToArray());
+                return (200, result.OrderBy(item => item.Nickname, StringComparer.OrdinalIgnoreCase).ThenBy(item => item.UserId, StringComparer.Ordinal).ToArray());
             }
         }
 
@@ -149,15 +145,7 @@ namespace Smart_Training_Server.Services.Room
 
                 var room = FindById(roomId);
                 var user = userService.FindById(userId);
-                return room != null &&
-                    !room.IsClosing &&
-                    user != null &&
-                    user.CurrentRoomId == room.Id &&
-                    user.CurrentLobbyId == room.LobbyId &&
-                    room.Users.ContainsKey(userId) &&
-                    serverConnections.ContainsKey(roomId) &&
-                    connectedTokens.TryGetValue(userId, out var current) &&
-                    current == admissionToken;
+                return room != null && !room.IsClosing && user != null && user.CurrentRoomId == room.Id && user.CurrentLobbyId == room.LobbyId && room.Users.ContainsKey(userId) && serverConnections.ContainsKey(roomId) && connectedTokens.TryGetValue(userId, out var current) && current == admissionToken;
             }
         }
     }

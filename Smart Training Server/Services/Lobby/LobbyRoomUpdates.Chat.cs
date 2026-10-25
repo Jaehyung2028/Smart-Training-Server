@@ -35,15 +35,14 @@ namespace Smart_Training_Server.Services.Lobby
                     return (false, error, null, null);
                 }
 
-                var payload = JsonSerializer.Serialize(new ChatMessageResponse
-                {
-                    Id = Guid.NewGuid().ToString("N"),
-                    LobbyId = subscription.LobbyId,
-                    UserId = user.Id,
-                    Nickname = user.Name,
-                    Text = text,
-                    SentAt = DateTimeOffset.UtcNow
-                });
+                var payload = JsonSerializer.Serialize(new ChatMessageResponse {
+                        Id = Guid.NewGuid().ToString("N"),
+                        LobbyId = subscription.LobbyId,
+                        UserId = user.Id,
+                        Nickname = user.Name,
+                        Text = text,
+                        SentAt = DateTimeOffset.UtcNow
+                    });
                 return (true, "전송했습니다.", payload, GetGroupName(subscription.LobbyId));
             }
         }
@@ -62,7 +61,8 @@ namespace Smart_Training_Server.Services.Lobby
                 lastChat.Remove(entry.Key);
             }
 
-            if (lastChat.TryGetValue(userId, out var previous) && Stopwatch.GetElapsedTime(previous, now).TotalSeconds < 1)
+            if (lastChat.TryGetValue(userId, out var previous) &&
+                Stopwatch.GetElapsedTime(previous, now).TotalSeconds < 1)
             {
                 return "메시지는 1초에 한 번 전송할 수 있습니다.";
             }
@@ -86,43 +86,60 @@ namespace Smart_Training_Server.Services.Lobby
             {
                 if (roomId == null || admissionToken == null)
                 {
-                    return new RoomChatSubscriptionResponse { Success = false };
+                    return new RoomChatSubscriptionResponse
+                    {
+                        Success = false
+                    };
                 }
 
                 if (!subscriptions.TryGetValue(connectionId, out var subscription))
                 {
-                    return new RoomChatSubscriptionResponse { Success = false };
+                    return new RoomChatSubscriptionResponse
+                    {
+                        Success = false
+                    };
                 }
 
                 var user = GetSubscribedUser(subscription);
                 if (user == null || subscription.LobbyId.Length == 0)
                 {
-                    return new RoomChatSubscriptionResponse { Success = false };
+                    return new RoomChatSubscriptionResponse
+                    {
+                        Success = false
+                    };
                 }
 
                 if (roomId == "")
                 {
                     roomChatSubscriptions.Remove(connectionId);
-                    return new RoomChatSubscriptionResponse { Success = true, ChatSequence = roomChatSequence };
+                    return new RoomChatSubscriptionResponse
+                    {
+                        Success = true,
+                        ChatSequence = roomChatSequence
+
+                    };
                 }
 
                 if (!rooms.CanUseRoomChat(user.Id, roomId, admissionToken))
                 {
-                    return new RoomChatSubscriptionResponse { Success = false };
+                    return new RoomChatSubscriptionResponse
+                    {
+                        Success = false
+                    };
                 }
 
                 roomChatSubscriptions[connectionId] = new(roomId, admissionToken);
-                return new RoomChatSubscriptionResponse { Success = true, ChatSequence = roomChatSequence };
+                return new RoomChatSubscriptionResponse
+                {
+                    Success = true,
+                    ChatSequence = roomChatSequence
+
+                };
             }
         }
 
         // 방 소속·토큰·구독을 확인하고 같은 방 그룹에 보낼 메시지를 만듭니다.
-        public (bool Success, string Message, string? Payload, string? GroupName) PrepareRoomChat(
-            string connectionId,
-            string roomId,
-            string admissionToken,
-            string? text
-        )
+        public (bool Success, string Message, string? Payload, string? GroupName) PrepareRoomChat(string connectionId, string roomId, string admissionToken, string? text)
         {
             lock (users.MembershipLock)
             {
@@ -135,8 +152,7 @@ namespace Smart_Training_Server.Services.Lobby
                 }
 
                 var user = GetSubscribedUser(subscription);
-                if (user == null ||
-                    !rooms.CanUseRoomChat(user.Id, roomId, admissionToken))
+                if (user == null || !rooms.CanUseRoomChat(user.Id, roomId, admissionToken))
                 {
                     return (false, "방에 접속 중인 참가자만 전송할 수 있습니다.", null, null);
                 }
@@ -148,17 +164,16 @@ namespace Smart_Training_Server.Services.Lobby
                     return (false, error, null, null);
                 }
 
-                var payload = JsonSerializer.Serialize(new ChatMessageResponse
-                {
-                    Id = Guid.NewGuid().ToString("N"),
-                    LobbyId = subscription.LobbyId,
-                    RoomId = roomId,
-                    Sequence = ++roomChatSequence,
-                    UserId = user.Id,
-                    Nickname = user.Name,
-                    Text = text,
-                    SentAt = DateTimeOffset.UtcNow
-                });
+                var payload = JsonSerializer.Serialize(new ChatMessageResponse {
+                        Id = Guid.NewGuid().ToString("N"),
+                        LobbyId = subscription.LobbyId,
+                        RoomId = roomId,
+                        Sequence = ++roomChatSequence,
+                        UserId = user.Id,
+                        Nickname = user.Name,
+                        Text = text,
+                        SentAt = DateTimeOffset.UtcNow
+                    });
                 return (true, "전송했습니다.", payload, GetRoomGroupName(roomId));
             }
         }

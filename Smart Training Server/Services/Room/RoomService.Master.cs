@@ -24,6 +24,7 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "로비, 방, 위임할 참가자를 지정해주세요."
+
                     };
                 }
 
@@ -34,6 +35,7 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "해당 로비에서 방을 찾을 수 없습니다."
+
                     };
                 }
 
@@ -43,6 +45,7 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "현재 방장만 방장을 위임할 수 있습니다."
+
                     };
                 }
 
@@ -56,6 +59,7 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "같은 방에 접속 중인 참가자에게만 위임할 수 있습니다."
+
                     };
                 }
 
@@ -67,6 +71,7 @@ namespace Smart_Training_Server.Services.Room
                         MasterUserId = authenticatedUserId,
                         IsEntryLocked = room.IsEntryLocked,
                         Message = "이미 방장입니다."
+
                     };
                 }
 
@@ -78,6 +83,7 @@ namespace Smart_Training_Server.Services.Room
                     MasterUserId = target.Id,
                     IsEntryLocked = room.IsEntryLocked,
                     Message = "방장을 위임했습니다."
+
                 };
             }
         }
@@ -94,6 +100,7 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "등록된 방 서버만 조회할 수 있습니다."
+
                     };
                 }
 
@@ -104,6 +111,7 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "방을 찾을 수 없습니다."
+
                     };
                 }
 
@@ -116,16 +124,13 @@ namespace Smart_Training_Server.Services.Room
                     MaxUsers = room.MaxUsers,
                     IsRunning = room.IsRunning,
                     PhaseRevision = room.PhaseRevision
+
                 };
             }
         }
 
         // 방장 권한을 검사한 뒤 등록된 Unity 서버에 강퇴를 요청합니다. API가 네트워크 연결을 직접 끊지는 않습니다.
-        public async Task<BaseResponse> KickRoomUserAsync(
-            string authenticatedUserId,
-            RoomParticipantRequest request,
-            IHubContext<RoomHub> roomHub
-        )
+        public async Task<BaseResponse> KickRoomUserAsync(string authenticatedUserId, RoomParticipantRequest request, IHubContext<RoomHub> roomHub)
         {
             // 잠금 안에서 대상 연결과 토큰을 확정하고, 실제 네트워크 전송은 잠금 밖에서 수행합니다.
             RoomDisconnectNotice notice;
@@ -258,11 +263,7 @@ namespace Smart_Training_Server.Services.Room
         private bool IsConnectedMaster(RoomInfo room, string userId)
         {
             var user = string.IsNullOrWhiteSpace(userId) ? null : userService.FindById(userId);
-            return user != null &&
-                user.CurrentRoomId == room.Id &&
-                room.Users.ContainsKey(userId) &&
-                connectedTokens.ContainsKey(userId) &&
-                room.MasterUserId == userId;
+            return user != null && user.CurrentRoomId == room.Id && room.Users.ContainsKey(userId) && connectedTokens.ContainsKey(userId) && room.MasterUserId == userId;
         }
     }
 }

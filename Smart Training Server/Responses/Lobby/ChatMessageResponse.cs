@@ -14,10 +14,7 @@ namespace Smart_Training_Server.Responses.Lobby
 
         [JsonPropertyName("roomId")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public string? RoomId
-        {
-            get; set;
-        }
+        public string? RoomId { get; set; }
 
         [JsonPropertyName("userId")]
         public string UserId { get; set; } = string.Empty;
@@ -31,15 +28,9 @@ namespace Smart_Training_Server.Responses.Lobby
         // 방 채팅에만 사용하는 서버 메시지 번호입니다. 로비 채팅 JSON에는 포함하지 않습니다.
         [JsonPropertyName("sequence")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public long? Sequence
-        {
-            get; set;
-        }
+        public long? Sequence { get; set; }
 
         [JsonPropertyName("sentAt")]
-        public DateTimeOffset SentAt
-        {
-            get; set;
-        }
+        public DateTimeOffset SentAt { get; set; }
     }
 }

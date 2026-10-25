@@ -23,10 +23,7 @@ namespace Smart_Training_Server.Services.Room
                     return true;
                 }
 
-                readyTask = readyMap.GetOrAdd(
-                    room.Id,
-                    _ => new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)
-                );
+                readyTask = readyMap.GetOrAdd(room.Id, _ => new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously));
                 if (room.State == ServerState.Creating)
                 {
                     try
@@ -90,7 +87,7 @@ namespace Smart_Training_Server.Services.Room
             }
             catch (TimeoutException)
             {
-                // 아래에서 현재 준비 작업인지 다시 확인한 뒤 시간 초과를 정리합니다.
+            // 아래에서 현재 준비 작업인지 다시 확인한 뒤 시간 초과를 정리합니다.
             }
 
             lock (userService.MembershipLock)
@@ -188,7 +185,6 @@ namespace Smart_Training_Server.Services.Room
                 reason
             );
             RemoveEmptyRoom(room);
-
             logger.LogInformation("방 서버 상태 초기화: {RoomId}, 사유: {Reason}", room.Id, reason);
         }
 

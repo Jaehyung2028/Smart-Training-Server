@@ -12,6 +12,7 @@ namespace Smart_Training_Server.Services.Auth
 
         // 토큰 해시 → 사용자 ID·만료 시각 저장소입니다. 공유 잠금으로 접근을 보호합니다.
         private readonly Dictionary<string, UserSession> sessions = new();
+
         private readonly TimeProvider timeProvider;
 
         // 토큰 원문을 SHA-256으로 바꿔 조회 키로 사용합니다. 저장소 유출 시 원문 노출을 줄이기 위한 처리입니다.
@@ -62,12 +63,13 @@ namespace Smart_Training_Server.Services.Auth
                     token.Length != 64 ||
                     !sessions.TryGetValue(HashToken(token), out var old) ||
                     old.ExpiresAtUtc.AddMinutes(authOptions.SessionGraceMinutes) <= timeProvider.GetUtcNow().UtcDateTime ||
-                    FindById(old.UserId) is not { } user)
+                    FindById(old.UserId)is not { } user)
                 {
                     return new()
                     {
                         Success = false,
                         Message = "갱신할 수 없는 인증 토큰입니다."
+
                     };
                 }
 
@@ -80,6 +82,7 @@ namespace Smart_Training_Server.Services.Auth
                     User = user,
                     AccessToken = next.Token,
                     ExpiresAtUtc = next.ExpiresAtUtc
+
                 };
             }
         }

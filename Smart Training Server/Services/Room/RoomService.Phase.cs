@@ -33,6 +33,7 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "현재 방장과 등록된 방 서버만 진행 상태를 변경할 수 있습니다."
+
                     };
                 }
 
@@ -43,6 +44,7 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "방 상태가 변경되었습니다. 최신 상태를 확인하고 다시 시도해주세요."
+
                     };
                 }
 
@@ -55,6 +57,7 @@ namespace Smart_Training_Server.Services.Room
                         {
                             Success = false,
                             Message = "참가자 정보가 올바르지 않습니다."
+
                         };
                     }
 
@@ -68,6 +71,7 @@ namespace Smart_Training_Server.Services.Room
                         {
                             Success = false,
                             Message = "참가자 정보를 확인하지 못했습니다."
+
                         };
                     }
 
@@ -83,6 +87,7 @@ namespace Smart_Training_Server.Services.Room
                         {
                             Success = false,
                             Message = "입장 예약 또는 참가자 변경이 있습니다. 접속 완료 후 다시 시작해주세요."
+
                         };
                     }
                 }
@@ -104,6 +109,7 @@ namespace Smart_Training_Server.Services.Room
                     MaxUsers = room.MaxUsers,
                     IsRunning = room.IsRunning,
                     PhaseRevision = room.PhaseRevision
+
                 };
             }
         }

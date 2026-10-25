@@ -7,8 +7,10 @@ namespace Smart_Training_Server.Services.Room
     {
         // 서버를 실행하고 배정한 포트를 반환합니다. 포트의 배정·해제는 실행 도구가 책임집니다.
         int Launch(string roomId, string executablePath, string serverToken);
+
         // 해당 방 서버가 살아 있는지 확인하는 인터페이스 계약입니다.
         bool IsRunning(string roomId);
+
         // 해당 방 서버의 종료를 요청하는 인터페이스 계약입니다.
         void Stop(string roomId);
     }

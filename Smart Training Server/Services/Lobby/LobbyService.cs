@@ -12,8 +12,11 @@ namespace Smart_Training_Server.Services.Lobby
     {
         // 현재 API의 로비 저장소입니다. 키는 로비 ID이며 여러 소속 변경은 별도 공통 잠금으로 보호합니다.
         private readonly ConcurrentDictionary<string, LobbyInfo> lobbies = new();
+
         private readonly ContentService contentService;
+
         private readonly UserService userService;
+
         private readonly Smart_Training_Server.Services.Operations.ServerOperationsRegistry operations;
 
         // 생성자입니다. 이 객체를 만드는 데 필요한 서비스나 설정을 전달받아 초기화합니다.
@@ -51,7 +54,10 @@ namespace Smart_Training_Server.Services.Lobby
         {
             if (!catalogInitialized)
             {
-                return Task.FromResult(new JoinLobbyResponse { Success = false, Message = "로비 목록이 아직 준비되지 않았습니다." });
+                return Task.FromResult(new JoinLobbyResponse {
+                        Success = false,
+                        Message = "로비 목록이 아직 준비되지 않았습니다."
+                    });
             }
 
             lock (userService.MembershipLock)
@@ -81,6 +87,7 @@ namespace Smart_Training_Server.Services.Lobby
                 {
                     Success = false,
                     Message = "사용자를 찾을 수 없습니다."
+
                 };
             }
 
@@ -92,6 +99,7 @@ namespace Smart_Training_Server.Services.Lobby
                 {
                     Success = false,
                     Message = "로비를 찾을 수 없습니다."
+
                 };
             }
 
@@ -102,6 +110,7 @@ namespace Smart_Training_Server.Services.Lobby
                 {
                     Success = false,
                     Message = "해당 로비에 입장해 있지 않습니다."
+
                 };
             }
 
@@ -112,6 +121,7 @@ namespace Smart_Training_Server.Services.Lobby
                 {
                     Success = false,
                     Message = "방에서 퇴장하거나 입장 예약을 취소해주세요."
+
                 };
             }
 
@@ -122,6 +132,7 @@ namespace Smart_Training_Server.Services.Lobby
                 {
                     Success = false,
                     Message = "로비 퇴장에 실패했습니다."
+
                 };
             }
 
@@ -135,6 +146,7 @@ namespace Smart_Training_Server.Services.Lobby
             {
                 Success = true,
                 Message = "로비에서 퇴장했습니다."
+
             };
         }
 

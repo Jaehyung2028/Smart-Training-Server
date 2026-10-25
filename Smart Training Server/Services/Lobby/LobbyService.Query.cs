@@ -59,6 +59,7 @@ namespace Smart_Training_Server.Services.Lobby
                 RoomCount = lobby.Rooms.Count,
                 ContentCount = lobby.Contents.Count,
                 CreatedAt = lobby.CreatedAt
+
             };
         }
 
@@ -72,6 +73,7 @@ namespace Smart_Training_Server.Services.Lobby
                 Depth = content.Depth,
                 Title = content.Title,
                 Children = content.Children.Select(ToContentQuery).ToArray()
+
             };
         }
     }

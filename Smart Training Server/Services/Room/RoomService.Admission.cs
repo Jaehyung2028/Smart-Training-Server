@@ -12,10 +12,13 @@ namespace Smart_Training_Server.Services.Room
     {
         // 사용자 ID별 입장 예약입니다. 한 사용자가 여러 방의 자리를 동시에 예약하지 못하도록 관리합니다.
         private readonly Dictionary<string, RoomAdmission> reservations = new();
+
         // 실제 접속 중인 사용자 ID와 당시 입장 토큰을 연결합니다. 늦게 도착한 이전 접속의 보고를 구분합니다.
         private readonly Dictionary<string, string> connectedTokens = new();
+
         // 방 ID와 등록된 Unity 서버의 SignalR 연결 ID를 연결합니다.
         private readonly Dictionary<string, string> serverConnections = new();
+
         private readonly TimeProvider timeProvider;
 
         // TimeProvider로 현재 UTC 시각을 얻습니다. 예약 만료와 활동 시각에 같은 시간 기준을 적용합니다.
@@ -33,6 +36,7 @@ namespace Smart_Training_Server.Services.Room
             {
                 Success = false,
                 Message = message
+
             };
         }
 
@@ -165,6 +169,7 @@ namespace Smart_Training_Server.Services.Room
                     Room = room,
                     AdmissionToken = admission.Token,
                     ExpiresAtUtc = admission.ExpiresAtUtc
+
                 };
             }
         }
@@ -179,6 +184,7 @@ namespace Smart_Training_Server.Services.Room
                 Token = NewToken(),
                 AwaitingJoinRequest = awaitingJoinRequest,
                 ExpiresAtUtc = Now.AddSeconds(roomOptions.ServerReadyTimeoutSeconds + 60)
+
             };
             reservations.Add(user.Id, admission);
             room.ReservedUsers++;
@@ -271,8 +277,7 @@ namespace Smart_Training_Server.Services.Room
                 user.RoomIndex = Enumerable.Range(0, room.MaxUsers).First(index => !room.Users.Values.Any(other => other.Id != userId && other.RoomIndex == index));
                 connectedTokens[userId] = admissionToken;
                 // 초기 방장이 접속 예약 중이면 다른 참가자가 먼저 연결되어도 방장 자리를 유지합니다.
-                bool masterIsJoining = reservations.TryGetValue(room.MasterUserId, out var masterAdmission) &&
-                    masterAdmission.RoomId == room.Id;
+                bool masterIsJoining = reservations.TryGetValue(room.MasterUserId, out var masterAdmission) && masterAdmission.RoomId == room.Id;
                 if (!room.Users.ContainsKey(room.MasterUserId) && !masterIsJoining)
                 {
                     room.MasterUserId = userId;
@@ -292,6 +297,7 @@ namespace Smart_Training_Server.Services.Room
                 UserId = user.Id,
                 UserName = user.Name,
                 RoomIndex = user.RoomIndex
+
             };
         }
 
@@ -303,16 +309,7 @@ namespace Smart_Training_Server.Services.Room
                 ExpireReservations();
                 var user = userService.FindById(userId);
                 var room = FindById(roomId);
-                bool valid = IsRegisteredServer(roomId, connectionId) &&
-                    room?.State == ServerState.Running &&
-                    !room.IsEntryLocked &&
-                    !room.IsRunning &&
-                    user != null &&
-                    user.CurrentLobbyId == room.LobbyId &&
-                    user.CurrentRoomId.Length == 0 &&
-                    reservations.TryGetValue(userId, out var admission) &&
-                    admission.RoomId == roomId &&
-                    admission.Token == admissionToken;
+                bool valid = IsRegisteredServer(roomId, connectionId) && room?.State == ServerState.Running && !room.IsEntryLocked && !room.IsRunning && user != null && user.CurrentLobbyId == room.LobbyId && user.CurrentRoomId.Length == 0 && reservations.TryGetValue(userId, out var admission) && admission.RoomId == roomId && admission.Token == admissionToken;
                 return Result(valid, valid ? "유효한 예약입니다." : "유효한 입장 예약이 없습니다.");
             }
         }
@@ -341,7 +338,10 @@ namespace Smart_Training_Server.Services.Room
                     return Result(false, "현재 접속과 일치하지 않습니다.");
                 }
 
-                return LeaveRoom(userId, new RoomMembershipRequest { LobbyId = room.LobbyId, RoomId = roomId });
+                return LeaveRoom(userId, new RoomMembershipRequest {
+                        LobbyId = room.LobbyId,
+                        RoomId = roomId
+                    });
             }
         }
 
@@ -401,7 +401,9 @@ namespace Smart_Training_Server.Services.Room
             {
                 // 예약 중이던 초기 방장이 취소·만료되면 이미 접속한 참가자에게 권한을 넘깁니다.
                 // 접속 확인에서는 참가자 추가 후 이 함수를 호출하므로 정상 입장한 방장은 유지됩니다.
-                if (room.MasterUserId == admission.UserId && !room.Users.ContainsKey(admission.UserId) && !room.Users.IsEmpty)
+                if (room.MasterUserId == admission.UserId &&
+                    !room.Users.ContainsKey(admission.UserId) &&
+                    !room.Users.IsEmpty)
                 {
                     ChangeMaster(room);
                 }
@@ -425,6 +427,7 @@ namespace Smart_Training_Server.Services.Room
             {
                 Success = success,
                 Message = message
+
             };
         }
     }

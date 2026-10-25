@@ -37,6 +37,7 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "해당 로비에서 방을 찾을 수 없습니다."
+
                     };
                 }
 
@@ -46,6 +47,7 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "현재 방장만 방 설정을 변경할 수 있습니다."
+
                     };
                 }
 
@@ -56,6 +58,7 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "진행 중에는 방 설정을 변경할 수 없습니다."
+
                     };
                 }
 
@@ -66,6 +69,7 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "현재 접속·예약 인원보다 정원을 줄일 수 없습니다."
+
                     };
                 }
 
@@ -79,6 +83,7 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "같은 이름의 방이 이미 존재하거나 로비가 종료되었습니다."
+
                     };
                 }
 
@@ -99,6 +104,7 @@ namespace Smart_Training_Server.Services.Room
                     IsEntryLocked = room.IsEntryLocked,
                     RoomName = name,
                     MaxUsers = room.MaxUsers
+
                 };
             }
         }
@@ -116,6 +122,7 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "로비, 방, 입장 잠금 상태를 지정해주세요."
+
                     };
                 }
 
@@ -126,6 +133,7 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "해당 로비에서 방을 찾을 수 없습니다."
+
                     };
                 }
 
@@ -135,6 +143,7 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "현재 방장만 입장 잠금을 변경할 수 있습니다."
+
                     };
                 }
 
@@ -155,6 +164,7 @@ namespace Smart_Training_Server.Services.Room
                     MasterUserId = room.MasterUserId,
                     IsEntryLocked = room.IsEntryLocked,
                     Message = room.IsEntryLocked ? "새 참가자의 입장을 잠갔습니다." : "새 참가자의 입장을 열었습니다."
+
                 };
             }
         }

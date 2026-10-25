@@ -12,6 +12,7 @@ namespace Smart_Training_Server.Services.Auth
     public sealed class UserTokenAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
     {
         public const string SchemeName = "UserToken";
+
         private readonly UserService users;
 
         // 생성자입니다. 이 객체를 만드는 데 필요한 서비스나 설정을 전달받아 초기화합니다.
@@ -48,10 +49,7 @@ namespace Smart_Training_Server.Services.Auth
             }
 
             // 확인한 사용자 ID와 닉네임을 Claim에 담습니다. Controller는 이 ID를 읽어 요청자를 판단합니다.
-            var identity = new ClaimsIdentity(
-                new[] { new Claim(ClaimTypes.NameIdentifier, user.Id), new Claim(ClaimTypes.Name, user.Name) },
-                SchemeName
-            );
+            var identity = new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, user.Id), new Claim(ClaimTypes.Name, user.Name) }, SchemeName);
             return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), SchemeName)));
         }
 

@@ -12,12 +12,7 @@ namespace Smart_Training_Server.Helper
 
         [DllImport("kernel32.dll", SetLastError = true)]
         // Job Object의 종료 제한 등 설정을 운영체제에 전달하는 네이티브 함수입니다.
-        private static extern bool SetInformationJobObject(
-            IntPtr hJob,
-            int JobObjectInfoClass,
-            IntPtr lpJobObjectInfo,
-            uint cbJobObjectInfoLength
-        );
+        private static extern bool SetInformationJobObject(IntPtr hJob, int JobObjectInfoClass, IntPtr lpJobObjectInfo, uint cbJobObjectInfoLength);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         // 지정 프로세스를 Job Object에 소속시키는 Windows 네이티브 함수입니다.
@@ -84,13 +79,21 @@ namespace Smart_Training_Server.Helper
         private struct JOBOBJECT_BASIC_LIMIT_INFORMATION
         {
             public long PerProcessUserTimeLimit;
+
             public long PerJobUserTimeLimit;
+
             public int LimitFlags;
+
             public UIntPtr MinimumWorkingSetSize;
+
             public UIntPtr MaximumWorkingSetSize;
+
             public int ActiveProcessLimit;
+
             public long Affinity;
+
             public int PriorityClass;
+
             public int SchedulingClass;
         }
 
@@ -99,10 +102,15 @@ namespace Smart_Training_Server.Helper
         private struct IO_COUNTERS
         {
             public ulong ReadOperationCount;
+
             public ulong WriteOperationCount;
+
             public ulong OtherOperationCount;
+
             public ulong ReadTransferCount;
+
             public ulong WriteTransferCount;
+
             public ulong OtherTransferCount;
         }
 
@@ -111,10 +119,15 @@ namespace Smart_Training_Server.Helper
         private struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION
         {
             public JOBOBJECT_BASIC_LIMIT_INFORMATION BasicLimitInformation;
+
             public IO_COUNTERS IoInfo;
+
             public UIntPtr ProcessMemoryLimit;
+
             public UIntPtr JobMemoryLimit;
+
             public UIntPtr PeakProcessMemoryUsed;
+
             public UIntPtr PeakJobMemoryUsed;
         }
     }

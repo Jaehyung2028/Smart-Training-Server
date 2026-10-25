@@ -4,6 +4,7 @@ namespace Smart_Training_Server.Services.Room
     public sealed class RoomServerMonitorService : BackgroundService
     {
         private readonly RoomService rooms;
+
         private readonly ILogger<RoomServerMonitorService> logger;
 
         // 생성에 필요한 값을 전달받아 초기화합니다.
@@ -31,7 +32,7 @@ namespace Smart_Training_Server.Services.Room
                     }
                 }
             }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            catch (OperationCanceledException)when (stoppingToken.IsCancellationRequested)
             {
             }
         }

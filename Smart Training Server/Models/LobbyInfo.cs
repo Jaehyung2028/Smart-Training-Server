@@ -13,16 +13,10 @@ namespace Smart_Training_Server.Models
         public string Name { get; set; } = string.Empty;
 
         // 서버에서 기록한 생성 UTC 시각입니다.
-        public DateTime CreatedAt
-        {
-            get; set;
-        }
+        public DateTime CreatedAt { get; set; }
 
         // 서버에서 마지막 활동을 기록한 시각입니다.
-        public DateTime LastActiveTime
-        {
-            get; set;
-        }
+        public DateTime LastActiveTime { get; set; }
 
         // 로비 입장이 완료된 사용자 목록입니다. 방 참가자는 로비에도 소속됩니다.
         public ConcurrentDictionary<string, UserInfo> Users { get; set; } = new();

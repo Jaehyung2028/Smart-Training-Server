@@ -27,9 +27,13 @@ namespace Smart_Training_Server.Services.Operations
     public sealed class OperationsBrowserLauncher : IHostedService
     {
         private readonly IHostApplicationLifetime lifetime;
+
         private readonly IConfiguration configuration;
+
         private readonly IOptions<OperationsOptions> options;
+
         private readonly IOperationsBrowserOpener opener;
+
         private readonly ILogger<OperationsBrowserLauncher> logger;
 
         // 생성에 필요한 값을 전달받아 초기화합니다.
@@ -49,6 +53,7 @@ namespace Smart_Training_Server.Services.Operations
         }
 
         private IDisposable? registration;
+
         private int opened;
 
         // 호스트가 서비스를 시작할 때 호출합니다. 실제 API 준비 완료 시점에 운영 페이지를 열도록 연결합니다.

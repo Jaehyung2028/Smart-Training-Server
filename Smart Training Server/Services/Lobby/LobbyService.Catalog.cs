@@ -37,6 +37,7 @@ namespace Smart_Training_Server.Services.Lobby
                         Name = content.Title,
                         CreatedAt = DateTime.UtcNow,
                         LastActiveTime = DateTime.UtcNow
+
                     };
                     lobby.Contents[content.RootContent] = content;
                     lobbies[lobby.Id] = lobby;
@@ -82,12 +83,23 @@ namespace Smart_Training_Server.Services.Lobby
             user.CurrentLobbyId = lobby.Id;
             user.CurrentLobbyName = lobby.Name;
             lobby.LastActiveTime = DateTime.UtcNow;
-            return new JoinLobbyResponse { Success = true, Message = "로비에 입장했습니다.", Lobby = lobby };
+            return new JoinLobbyResponse
+            {
+                Success = true,
+                Message = "로비에 입장했습니다.",
+                Lobby = lobby
+
+            };
         }
 
         private static JoinLobbyResponse Error(string message)
         {
-            return new JoinLobbyResponse { Success = false, Message = message };
+            return new JoinLobbyResponse
+            {
+                Success = false,
+                Message = message
+
+            };
         }
     }
 }

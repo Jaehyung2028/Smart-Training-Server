@@ -16,6 +16,7 @@ namespace Smart_Training_Server._Controllers
     public class LobbyController : ControllerBase
     {
         private readonly LobbyService lobbyService;
+
         private readonly RoomService roomService;
 
         // 생성자입니다. 이 객체를 만드는 데 필요한 서비스나 설정을 전달받아 초기화합니다.
@@ -29,11 +30,7 @@ namespace Smart_Training_Server._Controllers
         // 인증 사용자 ID로 입장을 요청하고 HTTP 취소 신호도 서비스에 전달합니다. 소속 검사는 서비스가 처리합니다.
         public async Task<ActionResult<JoinLobbyResponse>> JoinLobby(LobbyMembershipRequest request)
         {
-            JoinLobbyResponse response = await lobbyService.JoinLobby(
-                GetAuthenticatedUserId(),
-                request,
-                HttpContext.RequestAborted
-            );
+            JoinLobbyResponse response = await lobbyService.JoinLobby(GetAuthenticatedUserId(), request, HttpContext.RequestAborted);
             if (!response.Success)
             {
                 return BadRequest(response);
@@ -89,14 +86,7 @@ namespace Smart_Training_Server._Controllers
             }
 
             var message = result.StatusCode == 404 ? "로비를 찾을 수 없습니다." : "현재 입장한 로비의 참가자만 조회할 수 있습니다.";
-            return StatusCode(
-                result.StatusCode,
-                ApiErrorResponse.Create(
-                result.StatusCode,
-                HttpContext.TraceIdentifier,
-                message
-            )
-            );
+            return StatusCode(result.StatusCode, ApiErrorResponse.Create(result.StatusCode, HttpContext.TraceIdentifier, message));
         }
 
         // 클라이언트는 본인 ID를 보내지 않습니다. 인증 미들웨어가 토큰으로 확인해 기록한 사용자 ID를 얻습니다.

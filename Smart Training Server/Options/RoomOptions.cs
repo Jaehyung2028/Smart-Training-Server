@@ -16,33 +16,18 @@ namespace Smart_Training_Server.Options
         public int ServerReadyTimeoutSeconds { get; set; } = 60;
 
         // 방 생성·변경 시 허용하는 정원의 최솟값입니다.
-        public int MinUsers
-        {
-            get; set;
-        }
+        public int MinUsers { get; set; }
 
         // 방 생성·변경 시 허용하는 정원의 최댓값입니다.
-        public int MaxUsers
-        {
-            get; set;
-        }
+        public int MaxUsers { get; set; }
 
         // 방 이름의 최소 글자 수입니다.
-        public int NameMinLength
-        {
-            get; set;
-        }
+        public int NameMinLength { get; set; }
 
         // 방 이름의 최대 글자 수입니다.
-        public int NameMaxLength
-        {
-            get; set;
-        }
+        public int NameMaxLength { get; set; }
 
         // 같은 로비 안에서 같은 방 이름을 허용할지 결정합니다.
-        public bool AllowDuplicateName
-        {
-            get; set;
-        }
+        public bool AllowDuplicateName { get; set; }
     }
 }

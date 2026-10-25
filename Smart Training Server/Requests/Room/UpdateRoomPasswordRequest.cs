@@ -10,9 +10,6 @@ namespace Smart_Training_Server.Requests.Room
         public string RoomId { get; set; } = "";
 
         // 빈 문자열은 비밀번호 해제이며, 누락이나 null은 올바른 요청이 아닙니다.
-        public string? Password
-        {
-            get; set;
-        }
+        public string? Password { get; set; }
     }
 }

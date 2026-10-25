@@ -10,21 +10,12 @@ namespace Smart_Training_Server.Options
         public int SessionGraceMinutes { get; set; } = 5;
 
         // 허용하는 이름 길이의 최솟값입니다.
-        public int NameMinLength
-        {
-            get; set;
-        }
+        public int NameMinLength { get; set; }
 
         // 허용하는 이름 길이의 최댓값입니다.
-        public int NameMaxLength
-        {
-            get; set;
-        }
+        public int NameMaxLength { get; set; }
 
         // 같은 이름을 허용할지 결정하는 설정입니다.
-        public bool AllowDuplicateName
-        {
-            get; set;
-        }
+        public bool AllowDuplicateName { get; set; }
     }
 }

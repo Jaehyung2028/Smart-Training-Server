@@ -19,13 +19,20 @@ namespace Smart_Training_Server.Services.Room
     {
         // API가 알고 있는 방 정보 저장소입니다. Unity 프로세스 자체는 processManager가 관리합니다.
         private readonly ConcurrentDictionary<string, RoomInfo> rooms = new();
+
         // 방마다 준비 완료 신호를 공유합니다. 프로세스 실행 성공과 실제 접속 준비 완료는 구분합니다.
         private readonly ConcurrentDictionary<string, TaskCompletionSource<bool>> readyMap = new();
+
         private readonly LobbyService lobbyService;
+
         private readonly UserService userService;
+
         private readonly ILogger<RoomService> logger;
+
         private readonly RoomOptions roomOptions;
+
         private readonly IRoomServerProcessManager processManager;
+
         private readonly Smart_Training_Server.Services.Operations.ServerOperationsRegistry operations;
 
         // 생성자입니다. 이 객체를 만드는 데 필요한 서비스나 설정을 전달받아 초기화합니다.
@@ -74,12 +81,27 @@ namespace Smart_Training_Server.Services.Room
         }
 
         // 방의 고유 ID·소속 로비·콘텐츠·정원·최초 생성자와 기본 시각을 초기화합니다.
-        private RoomInfo CreateRoomInfo(
-            LobbyInfo lobby,
-            UserInfo masterUser,
-            ContentInfo content,
-            CreateRoomRequest request
-        )
+        // 카탈로그의 모든 깊이를 탐색하되 전달받은 루트 안에서만 검색합니다.
+        private static ContentInfo? FindContentNode(ContentInfo content, int nodeId)
+        {
+            if (content.Id == nodeId)
+            {
+                return content;
+            }
+
+            foreach (var child in content.Children)
+            {
+                var found = FindContentNode(child, nodeId);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+
+            return null;
+        }
+
+        private RoomInfo CreateRoomInfo(LobbyInfo lobby, UserInfo masterUser, ContentInfo content, CreateRoomRequest request)
         {
             return new RoomInfo
             {
@@ -92,6 +114,7 @@ namespace Smart_Training_Server.Services.Room
                 MasterUserId = masterUser.Id,
                 CreatedAt = DateTime.UtcNow,
                 LastActiveTime = DateTime.UtcNow
+
             };
         }
 
@@ -105,7 +128,12 @@ namespace Smart_Training_Server.Services.Room
                 var user = userService.FindById(authenticatedUserId);
                 if (user != null && (user.CurrentRoomId.Length != 0 || user.PendingRoomId.Length != 0))
                 {
-                    return new CreateRoomResponse { Success = false, Message = "이미 방에 입장했거나 입장을 예약했습니다." };
+                    return new CreateRoomResponse
+                    {
+                        Success = false,
+                        Message = "이미 방에 입장했거나 입장을 예약했습니다."
+
+                    };
                 }
 
                 var response = CreateRoomCore(authenticatedUserId, request);
@@ -128,6 +156,7 @@ namespace Smart_Training_Server.Services.Room
                 {
                     Success = false,
                     Message = "방 비밀번호는 4~32자이며 공백만 사용할 수 없습니다."
+
                 };
             }
 
@@ -138,6 +167,7 @@ namespace Smart_Training_Server.Services.Room
                 {
                     Success = false,
                     Message = "방 이름을 입력해주세요."
+
                 };
             }
 
@@ -149,6 +179,7 @@ namespace Smart_Training_Server.Services.Room
                 {
                     Success = false,
                     Message = "사용자를 찾을 수 없습니다."
+
                 };
             }
 
@@ -160,6 +191,7 @@ namespace Smart_Training_Server.Services.Room
                 {
                     Success = false,
                     Message = "로비를 찾을 수 없습니다."
+
                 };
             }
 
@@ -170,11 +202,13 @@ namespace Smart_Training_Server.Services.Room
                 {
                     Success = false,
                     Message = "해당 로비에 입장한 사용자만 방을 생성할 수 있습니다."
+
                 };
             }
 
             // 5. 방 이름 길이 검사
-            if (request.RoomName.Length < roomOptions.NameMinLength || request.RoomName.Length > roomOptions.NameMaxLength)
+            if (request.RoomName.Length < roomOptions.NameMinLength ||
+                request.RoomName.Length > roomOptions.NameMaxLength)
             {
                 return new CreateRoomResponse
                 {
@@ -190,6 +224,7 @@ namespace Smart_Training_Server.Services.Room
                 {
                     Success = false,
                     Message = "이미 사용 중인 방 이름입니다."
+
                 };
             }
 
@@ -210,7 +245,24 @@ namespace Smart_Training_Server.Services.Room
                 {
                     Success = false,
                     Message = "콘텐츠를 찾을 수 없습니다."
+
                 };
+            }
+
+            // 루트 문자열은 트리를, 숫자 ID는 그 안에서 선택한 노드를 구분합니다.
+            // 다른 로비의 노드나 없는 ID를 요청해도 해당 트리 밖에서는 찾지 않습니다.
+            if (request.ContentNodeId != 0)
+            {
+                content = FindContentNode(content, request.ContentNodeId);
+                if (content == null)
+                {
+                    return new CreateRoomResponse
+                    {
+                        Success = false,
+                        Message = "선택한 하위 콘텐츠를 찾을 수 없습니다."
+
+                    };
+                }
             }
 
             // 9. 방 생성
@@ -222,6 +274,7 @@ namespace Smart_Training_Server.Services.Room
                 {
                     Success = false,
                     Message = "방 생성에 실패했습니다."
+
                 };
             }
 
@@ -232,6 +285,7 @@ namespace Smart_Training_Server.Services.Room
                 {
                     Success = false,
                     Message = "방 생성에 실패했습니다."
+
                 };
             }
 
@@ -242,6 +296,7 @@ namespace Smart_Training_Server.Services.Room
                 Success = true,
                 Message = "방이 생성되었습니다.",
                 Room = room
+
             };
         }
 
@@ -260,6 +315,7 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = true,
                         Message = "입장 예약이 취소되었습니다."
+
                     };
                 }
 
@@ -277,6 +333,7 @@ namespace Smart_Training_Server.Services.Room
                 {
                     Success = false,
                     Message = "사용자를 찾을 수 없습니다."
+
                 };
             }
 
@@ -287,6 +344,7 @@ namespace Smart_Training_Server.Services.Room
                 {
                     Success = false,
                     Message = "로비를 찾을 수 없습니다."
+
                 };
             }
 
@@ -297,6 +355,7 @@ namespace Smart_Training_Server.Services.Room
                 {
                     Success = false,
                     Message = "방을 찾을 수 없습니다."
+
                 };
             }
 
@@ -306,6 +365,7 @@ namespace Smart_Training_Server.Services.Room
                 {
                     Success = false,
                     Message = "해당 방에 입장해 있지 않습니다."
+
                 };
             }
 
@@ -315,6 +375,7 @@ namespace Smart_Training_Server.Services.Room
                 {
                     Success = false,
                     Message = "방 퇴장에 실패했습니다."
+
                 };
             }
 
@@ -339,6 +400,7 @@ namespace Smart_Training_Server.Services.Room
             {
                 Success = true,
                 Message = "방에서 퇴장했습니다."
+
             };
         }
 

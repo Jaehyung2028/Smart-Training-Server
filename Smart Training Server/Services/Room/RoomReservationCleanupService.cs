@@ -22,7 +22,7 @@ namespace Smart_Training_Server.Services.Room
                     rooms.ExpireReservations();
                 }
             }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            catch (OperationCanceledException)when (stoppingToken.IsCancellationRequested)
             {
             }
         }

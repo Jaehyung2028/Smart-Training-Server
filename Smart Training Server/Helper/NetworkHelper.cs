@@ -56,9 +56,7 @@ namespace Smart_Training_Server.Helper
                 try
                 {
                     var properties = adapter.GetIPProperties();
-                    bool gateway = properties.GatewayAddresses.Any(x => x.Address.AddressFamily == AddressFamily.InterNetwork &&
-                        !x.Address.Equals(IPAddress.Any) &&
-                        !IPAddress.IsLoopback(x.Address));
+                    bool gateway = properties.GatewayAddresses.Any(x => x.Address.AddressFamily == AddressFamily.InterNetwork && !x.Address.Equals(IPAddress.Any) && !IPAddress.IsLoopback(x.Address));
                     bool physical = adapter.NetworkInterfaceType is NetworkInterfaceType.Ethernet or NetworkInterfaceType.Wireless80211;
                     foreach (var unicast in properties.UnicastAddresses)
                     {

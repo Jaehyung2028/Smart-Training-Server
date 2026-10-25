@@ -10,9 +10,6 @@ namespace Smart_Training_Server.Requests.Room
         public string RoomId { get; set; } = string.Empty;
 
         // 새 참가자의 입장이 잠겼는지 나타냅니다.
-        public bool? IsEntryLocked
-        {
-            get; set;
-        }
+        public bool? IsEntryLocked { get; set; }
     }
 }

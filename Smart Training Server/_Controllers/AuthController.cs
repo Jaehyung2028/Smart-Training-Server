@@ -15,6 +15,7 @@ namespace Smart_Training_Server._Controllers
     public class AuthController : ControllerBase
     {
         private readonly UserService userService;
+
         private readonly UserLifecycleService lifecycleService;
 
         // 생성자입니다. 이 객체를 만드는 데 필요한 서비스나 설정을 전달받아 초기화합니다.
@@ -89,10 +90,7 @@ namespace Smart_Training_Server._Controllers
             // Pragma는 과거 HTTP/1.0 방식의 캐시 제어와 호환하기 위한 보조 헤더입니다.
             // 응답의 Pragma: no-cache는 모든 캐시에서 보장되지 않으므로, 위 Cache-Control: no-store가 주 설정입니다.
             Response.Headers.Pragma = "no-cache";
-            if (!System.Net.Http.Headers.AuthenticationHeaderValue.TryParse(
-                Request.Headers.Authorization.ToString(),
-                out var header
-            ) ||
+            if (!System.Net.Http.Headers.AuthenticationHeaderValue.TryParse(Request.Headers.Authorization.ToString(), out var header) ||
                 !header.Scheme.Equals("Bearer", StringComparison.OrdinalIgnoreCase) ||
                 header.Parameter == null)
             {

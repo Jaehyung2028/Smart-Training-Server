@@ -16,24 +16,16 @@ namespace Smart_Training_Server.Helper
                 this.Port = port;
             }
 
-            public Process Process
-            {
-                get;
-            }
+            public Process Process { get; }
 
-            public int Port
-            {
-                get;
-            }
+            public int Port { get; }
 
-            public Task? StopTask
-            {
-                get; set;
-            }
+            public Task? StopTask { get; set; }
         }
 
         // 개별 저장소 접근은 ConcurrentDictionary로 보호하고, 여러 단계의 처리는 processGate로 함께 보호합니다.
         private static readonly ConcurrentDictionary<string, ManagedProcess> processes = new();
+
         // 프로세스 조회·시작·종료 중 Process 객체가 중간에 해제되지 않도록 보호합니다.
         private static readonly object processGate = new();
 
@@ -73,6 +65,7 @@ namespace Smart_Training_Server.Helper
                         WorkingDirectory = Path.GetDirectoryName(fullPath)!,
                         UseShellExecute = false,
                         CreateNoWindow = true
+
                     };
                     start.ArgumentList.Add("-Id");
                     start.ArgumentList.Add(id);
@@ -252,7 +245,7 @@ namespace Smart_Training_Server.Helper
             }
             catch (ObjectDisposedException)
             {
-                // 다른 정리 경로가 이미 프로세스 리소스를 해제한 경우입니다.
+            // 다른 정리 경로가 이미 프로세스 리소스를 해제한 경우입니다.
             }
             catch
             {

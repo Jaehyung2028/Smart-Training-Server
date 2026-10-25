@@ -5,7 +5,9 @@ using System.Text.Json;
 using Microsoft.AspNetCore.SignalR.Protocol;
 using Smart_Training_Server.Hubs;
 using Smart_Training_Server.Responses.Base;
-using Smart_Training_Server.Responses.Health;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Smart_Training_Server._Controllers;
 using Smart_Training_Server.Responses.Lobby;
 
 internal static class ResponseContractChecks
@@ -54,6 +56,8 @@ internal static class ResponseContractChecks
             Check(json.RootElement.EnumerateObject().Count() == 7 && json.RootElement.GetProperty("roomId").GetString() == "room", "typed room chat retains roomId");
         }
 
-        Check(JsonSerializer.Serialize(new HealthResponse(), new JsonSerializerOptions(JsonSerializerDefaults.Web)) == "{\"status\":\"ok\"}", "typed health response preserves status JSON");
+        var health = new HealthController { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } };
+        var healthResult = (OkObjectResult)health.GetStatus();
+        Check(JsonSerializer.Serialize(healthResult.Value, new JsonSerializerOptions(JsonSerializerDefaults.Web)) == "{\"status\":\"ok\"}", "health endpoint preserves status JSON");
     }
 }

@@ -10,6 +10,7 @@ namespace Smart_Training_Server.Hubs
     public class RoomHub : Hub
     {
         private readonly RoomService roomService;
+
         private readonly RoomServerConnectionRegistry connectionService;
 
         // Hub가 사용할 방 서비스와 연결 대응표를 의존성 주입으로 전달받습니다.
@@ -72,13 +73,7 @@ namespace Smart_Training_Server.Hubs
         }
 
         // 문자열로 전달된 진행 여부와 버전을 파싱한 뒤 방 서비스에 상태 변경 검사를 요청합니다.
-        public RoomMasterResponse SetRoomPhase(
-            string userId,
-            string token,
-            string running,
-            string rosterJson,
-            string expectedRevision
-        )
+        public RoomMasterResponse SetRoomPhase(string userId, string token, string running, string rosterJson, string expectedRevision)
         {
             if (!bool.TryParse(running, out var value))
             {
@@ -90,7 +85,7 @@ namespace Smart_Training_Server.Hubs
                 System.Globalization.NumberStyles.None,
                 System.Globalization.CultureInfo.InvariantCulture,
                 out var revision
-            ))
+                ))
             {
                 throw new HubException("상태 버전이 올바르지 않습니다.");
             }

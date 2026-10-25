@@ -10,9 +10,13 @@ namespace Smart_Training_Server.Services.Auth
     public sealed class UserLifecycleService
     {
         private readonly UserService users;
+
         private readonly RoomService rooms;
+
         private readonly LobbyService lobbies;
+
         private readonly IHubContext<RoomHub> roomHub;
+
         private readonly ILogger<UserLifecycleService> logger;
 
         // 생성에 필요한 값을 전달받아 초기화합니다.
@@ -48,6 +52,7 @@ namespace Smart_Training_Server.Services.Auth
             {
                 Success = true,
                 Message = "로그아웃되었습니다."
+
             };
         }
 
@@ -80,11 +85,7 @@ namespace Smart_Training_Server.Services.Auth
             {
                 try
                 {
-                    await roomHub.Clients.Client(notice.ConnectionId).SendAsync(
-                        "DisconnectUser",
-                        notice.UserId,
-                        notice.AdmissionToken
-                    );
+                    await roomHub.Clients.Client(notice.ConnectionId).SendAsync("DisconnectUser", notice.UserId, notice.AdmissionToken);
                 }
                 catch (Exception ex)
                 {

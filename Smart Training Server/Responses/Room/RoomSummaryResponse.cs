@@ -1,4 +1,4 @@
-using Smart_Training_Server.Enum;
+﻿using Smart_Training_Server.Enum;
 
 // 방 목록 요약 응답 객체입니다.
 // init 전용 조회 데이터이므로 record의 값 비교를 사용합니다. JSON 구조는 기존과 같습니다.
@@ -24,6 +24,12 @@ namespace Smart_Training_Server.Responses.Room
 
         // 방이 사용하는 콘텐츠의 표시 제목입니다.
         public string ContentTitle { get; init; } = string.Empty;
+
+        // 선택한 최하위 콘텐츠의 표시 타입입니다. video·scenario·model을 Unity에 전달합니다.
+        public string ContentType { get; init; } = string.Empty;
+
+        // Unity Addressables의 기본 콘텐츠 프리팹 주소입니다. 빈 값은 아직 리소스를 등록하지 않은 상태입니다.
+        public string AssetId { get; init; } = string.Empty;
 
         // 방 최대 정원입니다. 실제 인원과 입장 예약을 포함한 조건은 서비스에서 검사합니다.
         public int MaxUsers { get; init; }

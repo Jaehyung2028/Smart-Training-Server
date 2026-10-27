@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Text.Json;
 using Smart_Training_Server.Models;
 
@@ -75,6 +75,27 @@ namespace Smart_Training_Server.Services
             if (node.Children == null)
             {
                 throw new InvalidDataException("Children은 배열이어야 합니다.");
+            }
+
+            // 기존 카탈로그에 타입이 없으면 부모는 category, 최하위는 model로 보완합니다.
+            // 명시한 타입이 잘못됐거나 분류 구조와 맞지 않으면 서버 시작 시 오류를 알립니다.
+            node.ContentType = string.IsNullOrWhiteSpace(node.ContentType)
+                ? (node.Children.Count > 0 ? "category" : "model")
+                : node.ContentType.Trim().ToLowerInvariant();
+            if (node.ContentType is not ("category" or "video" or "scenario" or "model"))
+            {
+                throw new InvalidDataException($"지원하지 않는 콘텐츠 타입: {node.ContentType} (노드 {node.Id})");
+            }
+
+            if ((node.Children.Count > 0) != (node.ContentType == "category"))
+            {
+                throw new InvalidDataException($"부모 콘텐츠는 category, 최하위 콘텐츠는 video, scenario 또는 model이어야 합니다. (노드 {node.Id})");
+            }
+
+            node.AssetId = node.AssetId?.Trim() ?? string.Empty;
+            if (node.ContentType == "category" && node.AssetId.Length > 0)
+            {
+                throw new InvalidDataException($"분류 콘텐츠에는 AssetId를 지정할 수 없습니다. (노드 {node.Id})");
             }
 
             node.Title = node.Title.Trim();

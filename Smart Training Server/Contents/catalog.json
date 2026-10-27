@@ -3,10 +3,13 @@
     "rootContent": "sample-training",
     "id": 1,
     "title": "테스트 훈련 콘텐츠",
+    "contentType": "category",
     "children": [
       {
         "id": 2,
         "title": "기본 훈련 단계",
+        "contentType": "model",
+        "assetId": "content/model/training-drill",
         "children": []
       }
     ]
@@ -15,15 +18,20 @@
     "rootContent": "safety-training",
     "id": 10,
     "title": "안전 교육 훈련 (예시)",
+    "contentType": "category",
     "children": [
       {
         "id": 11,
         "title": "보호 장비 확인",
+        "contentType": "model",
+        "assetId": "",
         "children": []
       },
       {
         "id": 12,
         "title": "위험 요소 식별",
+        "contentType": "model",
+        "assetId": "",
         "children": []
       }
     ]
@@ -32,15 +40,42 @@
     "rootContent": "emergency-training",
     "id": 20,
     "title": "비상 대응 훈련 (예시)",
+    "contentType": "category",
     "children": [
       {
         "id": 21,
         "title": "대피 경로 확인",
+        "contentType": "model",
+        "assetId": "",
         "children": []
       },
       {
         "id": 22,
         "title": "팀원 집결 확인",
+        "contentType": "model",
+        "assetId": "",
+        "children": []
+      }
+    ]
+  },
+  {
+    "rootContent": "222emergency-training",
+    "id": 30,
+    "title": "222비상 대응 훈련 (예시)",
+    "contentType": "category",
+    "children": [
+      {
+        "id": 31,
+        "title": "dddd대피 경로 확인",
+        "contentType": "model",
+        "assetId": "",
+        "children": []
+      },
+      {
+        "id": 32,
+        "title": "dddd팀원 집결 확인",
+        "contentType": "model",
+        "assetId": "",
         "children": []
       }
     ]

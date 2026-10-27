@@ -1,4 +1,4 @@
-using Smart_Training_Server.Responses.Base;
+﻿using Smart_Training_Server.Responses.Base;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Options;
@@ -263,6 +263,16 @@ namespace Smart_Training_Server.Services.Room
 
                     };
                 }
+            }
+
+            // 부모 콘텐츠는 분류용입니다. 클라이언트 UI를 우회해 요청해도 최하위 콘텐츠만 허용합니다.
+            if (content.Children.Count > 0)
+            {
+                return new CreateRoomResponse
+                {
+                    Success = false,
+                    Message = "하위 항목이 없는 최하위 콘텐츠를 선택해주세요."
+                };
             }
 
             // 9. 방 생성

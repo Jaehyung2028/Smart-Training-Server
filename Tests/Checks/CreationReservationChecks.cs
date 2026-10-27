@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 using Smart_Training_Server.Enum;
 using Smart_Training_Server.Options;
 using Smart_Training_Server.Requests.Auth;
@@ -31,7 +31,7 @@ internal static class CreationReservationChecks
         await lobbies.JoinLobby(user.Id, new LobbyMembershipRequest { LobbyId = "creation" });
         CreateRoomRequest Request(string name) => new()
         {
-            LobbyId = "creation", ContentId = "sample-training", RoomName = name, MaxUsers = 1
+            LobbyId = "creation", ContentId = "sample-training", ContentNodeId = 2, RoomName = name, MaxUsers = 1
         };
 
         // 생성 응답을 클라이언트가 받지 못했다고 가정해 아무 후속 요청도 보내지 않습니다.

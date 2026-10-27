@@ -1,4 +1,4 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Smart_Training_Server.Options;
 using Smart_Training_Server.Requests.Auth;
@@ -33,6 +33,8 @@ internal static class ContentChecks
             root.Depth == 0 && root.ParentId == 0 && root.Children[0].Depth == 1 && root.Children[0].ParentId == root.Id && root.Children[0].RootContent == root.RootContent,
             "normalize content tree hierarchy"
         );
+        Check(root.ContentType == "category" && root.Children[0].ContentType == "model",
+            "catalog preserves category and model types");
         var users = new UserService(Options.Create(new AuthOptions {
                     NameMinLength = 1,
                     NameMaxLength = 20
@@ -64,12 +66,12 @@ internal static class ContentChecks
             new CreateRoomRequest {
                 LobbyId = first.Id,
                 RoomName = "content-room",
-                ContentId = "sample-training",
+                ContentId = "sample-training", ContentNodeId = 2,
                 MaxUsers = 2
             }
         );
         Check(
-            response.Success && response.Room!.Content.Title == root.Title,
+            response.Success && response.Room!.Content.Title == root.Children[0].Title,
             "create room from automatically loaded content"
         );
         Check(
@@ -86,6 +88,7 @@ internal static class ContentChecks
         );
         // 실제 생성 API가 사용하는 진입점에서 자식 선택과 초기 예약을 함께 확인합니다.
         var child = first.Contents["sample-training"].Children[0];
+        child.AssetId = "content/model/test-training";
         var childRoom = rooms.CreateRoom(user.Id, new CreateRoomRequest
         {
             LobbyId = first.Id,
@@ -107,6 +110,17 @@ internal static class ContentChecks
         {
             RootContent = "sample-training", Id = 999, ParentId = child.Id, Depth = 2, Title = "nested-content"
         });
+        foreach (int parentId in new[] { 0, root.Id, child.Id })
+        {
+            var rejected = rooms.CreateRoom(user.Id, new CreateRoomRequest
+            {
+                LobbyId = first.Id, RoomName = "parent-content", ContentId = "sample-training",
+                ContentNodeId = parentId, MaxUsers = 2
+            });
+            Check(!rejected.Success && user.PendingRoomId == "",
+                "reject parent content without creating reservation " + parentId);
+        }
+
         var nestedRoom = TestRoomSetup.Create(rooms, user.Id, new CreateRoomRequest
         {
             LobbyId = first.Id, RoomName = "nested-content-room", ContentId = "sample-training",
@@ -123,6 +137,15 @@ internal static class ContentChecks
             Check(!invalidNodeRoom.Success && user.PendingRoomId == "",
                 "reject missing negative or other root node without reservation " + invalidNode);
         }
+
+        var publicTree = lobbies.GetContentsByLobby(first.Id)!;
+        Check(publicTree[0].ContentType == "category" && publicTree[0].Children[0].ContentType == "model",
+            "public content tree exposes content type");
+        Check(childSummary.ContentType == "model", "room summary exposes selected content type");
+        Check(childSummary.AssetId == "content/model/test-training" && childRoom.Room.Content.AssetId == childSummary.AssetId,
+            "created and summarized room retain the selected base prefab address");
+        Check(publicTree[0].Children[0].AssetId == childSummary.AssetId,
+            "content query exposes selected base prefab address");
 
         var secondService = TestCatalogLobbies.FromCatalog(catalog, users);
         var second = TestCatalogLobbies.Get(secondService, "sample-training");
@@ -153,13 +176,48 @@ internal static class ContentChecks
             Check(MissingCatalogRejected(), "invalid JSON or tree does not register lobby");
         }
 
+        foreach (var invalidType in new[]
+        {
+            "[{\"rootContent\":\"type-test\",\"id\":1,\"title\":\"invalid\",\"contentType\":\"audio\"}]",
+            "[{\"rootContent\":\"type-test\",\"id\":1,\"title\":\"invalid\",\"contentType\":\"category\"}]",
+            "[{\"rootContent\":\"type-test\",\"id\":1,\"title\":\"invalid\",\"contentType\":\"video\",\"children\":[{\"id\":2,\"title\":\"child\"}]}]"
+        })
+        {
+            File.WriteAllText(Path.Combine(directory, "catalog.json"), invalidType);
+            Check(MissingCatalogRejected(), "invalid content type or category hierarchy is rejected");
+        }
+
+        File.WriteAllText(Path.Combine(directory, "catalog.json"),
+            "[{\"rootContent\":\"asset-parent\",\"id\":1,\"title\":\"course\",\"contentType\":\"category\",\"assetId\":\"content/model/invalid\",\"children\":[{\"id\":2,\"title\":\"child\"}]}]");
+        Check(MissingCatalogRejected(), "category cannot declare a base prefab address");
+
+        File.WriteAllText(Path.Combine(directory, "catalog.json"),
+            "[{\"rootContent\":\"video-test\",\"id\":1,\"title\":\"video\",\"contentType\":\" VIDEO \"}]");
+        var video = invalidCatalog.LoadLobbyContents()["video-test"];
+        Check(video.AssetId == "", "missing asset address remains an unpublished draft");
+        Check(video.ContentType == "video", "video type normalizes and loads");
+        var videoJson = System.Text.Json.JsonSerializer.SerializeToElement(video,
+            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+        Check(videoJson.GetProperty("contentType").GetString() == "video", "content type is serialized as readable string");
+
+        File.WriteAllText(Path.Combine(directory, "catalog.json"),
+            "[{\"rootContent\":\"scenario-test\",\"id\":1,\"title\":\"course\",\"contentType\":\"category\",\"children\":[{\"id\":2,\"title\":\"tools practice\",\"contentType\":\" SCENARIO \"}]}]");
+        var scenarioLobbies = TestCatalogLobbies.FromCatalog(invalidCatalog, users);
+        var scenarioTree = scenarioLobbies.GetContentsByLobby("scenario-test")!;
+        Check(scenarioTree[0].ContentType == "category" && scenarioTree[0].Children[0].ContentType == "scenario",
+            "scenario practice type normalizes and reaches public content tree");
+        var scenarioJson = System.Text.Json.JsonSerializer.SerializeToElement(scenarioTree[0].Children[0],
+            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+        Check(scenarioJson.GetProperty("contentType").GetString() == "scenario",
+            "scenario type is serialized as a readable string");
+
         File.WriteAllText(
             Path.Combine(directory, "catalog.json"),
             "[{\"rootContent\":\" restored \",\"id\":1,\"title\":\" restored \"}]"
         );
         invalidLobbies.InitializeCatalogLobbies();
         Check(
-            invalidLobbies.FindById("restored")?.Contents.ContainsKey("restored") == true,
+            invalidLobbies.FindById("restored")?.Contents["restored"].ContentType == "model",
             "catalog correction allows retry"
         );
     }

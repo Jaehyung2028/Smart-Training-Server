@@ -1,4 +1,4 @@
-using Smart_Training_Server.Services.Operations;
+﻿using Smart_Training_Server.Services.Operations;
 using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -130,7 +130,7 @@ internal static class MaintenanceChecks
                 a.Id,
                 new CreateRoomRequest {
                     LobbyId = "sample-training",
-                    ContentId = "sample-training",
+                    ContentId = "sample-training", ContentNodeId = 2,
                     RoomName = "maintenance-room",
                     MaxUsers = 2
                 }

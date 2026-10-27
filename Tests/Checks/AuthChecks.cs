@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -207,7 +207,7 @@ internal static class AuthChecks
             );
             var created = (await (await client.PostAsJsonAsync(
                 "api/Room/create",
-                new { UserId = second.User.Id, LobbyId = lobby.Id, RoomName = "auth-room", ContentId = "sample-training", MaxUsers = 2 }
+                new { UserId = second.User.Id, LobbyId = lobby.Id, RoomName = "auth-room", ContentId = "sample-training", ContentNodeId = 2, MaxUsers = 2 }
             )).Content.ReadFromJsonAsync<CreateRoomResponse>())!;
             var room = rooms.FindById(created.Room!.Id)!;
             Check(created.Success && room.MasterUserId == first.User.Id, "room creation uses token user as master");
@@ -326,7 +326,7 @@ internal static class AuthChecks
                 new CreateRoomRequest {
                     LobbyId = cleanupLobby.Id,
                     RoomName = "grace-room",
-                    ContentId = "sample-training",
+                    ContentId = "sample-training", ContentNodeId = 2,
                     MaxUsers = 2
                 }
             ).Room!;

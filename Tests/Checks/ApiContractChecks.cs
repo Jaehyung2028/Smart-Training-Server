@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
@@ -103,6 +103,19 @@ internal static class ApiContractChecks
                 HttpStatusCode.MethodNotAllowed,
                 "method_not_allowed"
             );
+            // 교육과정 목록만 로그인 전에 공개하고 기존 로비·참가자 API의 인증은 유지합니다.
+            var courseResponse = await client.GetAsync("api/Lobby/courses");
+            Check(courseResponse.StatusCode == HttpStatusCode.OK, "anonymous course catalog is available before login");
+            using (var courseJson = JsonDocument.Parse(await courseResponse.Content.ReadAsStringAsync()))
+            {
+                var course = courseJson.RootElement.EnumerateArray().Single();
+                Check(course.GetProperty("id").GetString() == "standard" && course.GetProperty("canEnter").GetBoolean(),
+                    "anonymous course ID points to its catalog lobby");
+                Check(course.EnumerateObject().Count() == 4 && !course.TryGetProperty("users", out _) && !course.TryGetProperty("serverToken", out _),
+                    "course catalog exposes only public selection fields");
+            }
+            Check(courseResponse.Headers.CacheControl?.NoStore == true, "course availability is not cached");
+            await Error(await client.GetAsync("api/Lobby"), HttpStatusCode.Unauthorized, "unauthorized");
             await Error(await client.GetAsync("api/Lobby/missing/participants"), HttpStatusCode.Unauthorized, "unauthorized");
             await Error(await client.PostAsync("api/Auth/refresh", null), HttpStatusCode.Unauthorized, "unauthorized");
             var login = (await (await client.PostAsJsonAsync("api/Auth/login", new { userName = "contract-user" })).Content.ReadFromJsonAsync<LoginResponse>())!;
@@ -140,7 +153,7 @@ internal static class ApiContractChecks
             );
             var createdHttp = await client.PostAsJsonAsync(
                 "api/Room/create",
-                new { lobbyId = lobby.Id, roomName = "standard-room", contentId = "sample-training", maxUsers = 2 }
+                new { lobbyId = lobby.Id, roomName = "standard-room", contentId = "sample-training", contentNodeId = 2, maxUsers = 2 }
             );
             var room = (await createdHttp.Content.ReadFromJsonAsync<CreateRoomResponse>())!.Room!;
             Check(createdHttp.StatusCode == HttpStatusCode.OK && room.ReservedUsers == 1 && users.FindById(login.User!.Id)!.PendingRoomId == room.Id,
@@ -148,7 +161,7 @@ internal static class ApiContractChecks
             Check(
                 (await client.PostAsJsonAsync(
                     "api/Room/create",
-                    new { lobbyId = lobby.Id, roomName = "legacy-room", contentId = "sample-training", maxUsers = 2 }
+                    new { lobbyId = lobby.Id, roomName = "legacy-room", contentId = "sample-training", contentNodeId = 2, maxUsers = 2 }
                 )).StatusCode == HttpStatusCode.BadRequest,
                 "standard room route rejects second creation during pending admission"
             );

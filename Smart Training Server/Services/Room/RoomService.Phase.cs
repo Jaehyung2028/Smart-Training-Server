@@ -108,6 +108,7 @@ namespace Smart_Training_Server.Services.Room
                     RoomName = room.Name,
                     MaxUsers = room.MaxUsers,
                     IsRunning = room.IsRunning,
+                    ContentType = room.Content.ContentType,
                     PhaseRevision = room.PhaseRevision
 
                 };

@@ -1,3 +1,4 @@
+﻿using System.Net.Http.Headers;
 using Smart_Training_Server.Models;
 using Smart_Training_Server.Responses.Lobby;
 using Smart_Training_Server.Responses.Room;
@@ -181,12 +182,15 @@ IReadOnlyList<LobbyParticipantResponse> Participants
         {
             lock (users.MembershipLock)
             {
-                if (!authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                // HTTP 인증 헤더 구문은 .NET 파서에 맡기고, 토큰 유효성과 소속은 아래에서 검사합니다.
+                if (!AuthenticationHeaderValue.TryParse(authorization, out var header) ||
+                    !header.Scheme.Equals("Bearer", StringComparison.OrdinalIgnoreCase) ||
+                    string.IsNullOrEmpty(header.Parameter))
                 {
                     return false;
                 }
 
-                var token = authorization[7..];
+                var token = header.Parameter;
                 var user = users.FindByAccessToken(token);
                 if (user == null || lobbyId == null || (lobbyId.Length > 0 && user.CurrentLobbyId != lobbyId))
                 {

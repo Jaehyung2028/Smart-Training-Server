@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 using Smart_Training_Server.Enum;
 using Smart_Training_Server.Models;
 using Smart_Training_Server.Options;
@@ -65,7 +65,7 @@ internal static class ServerProcessChecks
             new CreateRoomRequest {
                 LobbyId = lobby.Id,
                 RoomName = "server-room",
-                ContentId = "sample-training",
+                ContentId = "sample-training", ContentNodeId = 2,
                 MaxUsers = 2
             }
         ).Room!;
@@ -73,7 +73,7 @@ internal static class ServerProcessChecks
         {
             if (rooms.FindById(room.Id) == null)
             {
-                room = TestRoomSetup.Create(rooms, a.Id, new CreateRoomRequest { LobbyId = lobby.Id, RoomName = "server-room", ContentId = "sample-training", MaxUsers = 2 }).Room!;
+                room = TestRoomSetup.Create(rooms, a.Id, new CreateRoomRequest { LobbyId = lobby.Id, RoomName = "server-room", ContentId = "sample-training", ContentNodeId = 2, MaxUsers = 2 }).Room!;
             }
 
             return rooms.JoinRoom(user.Id, new JoinRoomRequest { LobbyId = lobby.Id, RoomId = room.Id });

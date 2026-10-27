@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Builder;
@@ -85,7 +85,7 @@ internal static class LogoutChecks
                 new CreateRoomRequest {
                     LobbyId = lobby.Id,
                     RoomName = name,
-                    ContentId = "sample-training",
+                    ContentId = "sample-training", ContentNodeId = 2,
                     MaxUsers = 3
                 }
             ).Room!;
@@ -474,7 +474,7 @@ internal static class LogoutChecks
                 new CreateRoomRequest {
                     LobbyId = departedLobby.Id,
                     RoomName = "departed-room",
-                    ContentId = "sample-training",
+                    ContentId = "sample-training", ContentNodeId = 2,
                     MaxUsers = 2
                 }
             ).Room!;
@@ -493,7 +493,7 @@ internal static class LogoutChecks
                 new CreateRoomRequest {
                     LobbyId = startupLobby.Id,
                     RoomName = "starting",
-                    ContentId = "sample-training",
+                    ContentId = "sample-training", ContentNodeId = 2,
                     MaxUsers = 2
                 }
             ).Room!;

@@ -52,6 +52,15 @@ namespace Smart_Training_Server._Controllers
             return Ok(response);
         }
 
+        [HttpGet("courses")]
+        [AllowAnonymous]
+        // 로그인 화면의 교육과정 선택용 목록입니다. 입장·참가자 조회 등의 인증 요구는 유지합니다.
+        public ActionResult<IReadOnlyList<CourseSummaryResponse>> GetCourses()
+        {
+            Response.Headers.CacheControl = "no-store";
+            return Ok(lobbyService.GetCourses());
+        }
+
         [HttpGet]
         // 로비 요약 목록을 HTTP 200으로 반환합니다. 사용자·방 개수와 운영 설정을 포함합니다.
         public IActionResult GetAll()

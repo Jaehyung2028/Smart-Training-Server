@@ -1,4 +1,4 @@
-using Smart_Training_Server.Models;
+﻿using Smart_Training_Server.Models;
 using Smart_Training_Server.Responses.Lobby;
 using Smart_Training_Server.Responses.Room;
 
@@ -40,6 +40,8 @@ namespace Smart_Training_Server.Services.Room
                 ContentId = room.Content.RootContent,
                 ContentNodeId = room.Content.Id,
                 ContentTitle = room.Content.Title,
+                ContentType = room.Content.ContentType,
+                AssetId = room.Content.AssetId,
                 MaxUsers = room.MaxUsers,
                 ConnectedUsers = room.Users.Count,
                 ReservedUsers = room.ReservedUsers,

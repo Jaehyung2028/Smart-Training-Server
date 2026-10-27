@@ -1,4 +1,4 @@
-using Smart_Training_Server.Services.Operations;
+﻿using Smart_Training_Server.Services.Operations;
 using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
@@ -67,7 +67,7 @@ internal static class OperationsChecks
         var operations = new ServerOperationsService(users, lobbies, rooms, registry);
         var initial = operations.GetSnapshot();
         Check(
-            initial.Lobbies.Count == 3 && initial.Rooms.Count == 0 && initial.RecentEvents.Count == 0,
+            initial.Lobbies.Count == lobbies.GetAll().Count() && initial.Rooms.Count == 0 && initial.RecentEvents.Count == 0,
             "initial snapshot lists catalog without launching any process"
         );
         var login = users.Login(new LoginRequest { UserName = "ops-user" });
@@ -87,7 +87,7 @@ internal static class OperationsChecks
             user.Id,
             new CreateRoomRequest {
                 LobbyId = "sample-training",
-                ContentId = "sample-training",
+                ContentId = "sample-training", ContentNodeId = 2,
                 RoomName = "ops-room",
                 MaxUsers = 2
             }
@@ -133,7 +133,7 @@ internal static class OperationsChecks
             connected.Rooms.Single().ConnectedUsers == 1 && connected.Rooms.Single().Lifecycle?.LastFailure == null,
             "previous snapshots remain independent of later mutations"
         );
-        room = TestRoomSetup.Create(rooms, user.Id, new CreateRoomRequest { LobbyId = "sample-training", RoomName = "ops-replacement", ContentId = "sample-training", MaxUsers = 2 }).Room!;
+        room = TestRoomSetup.Create(rooms, user.Id, new CreateRoomRequest { LobbyId = "sample-training", RoomName = "ops-replacement", ContentId = "sample-training", ContentNodeId = 2, MaxUsers = 2 }).Room!;
         var retry = rooms.JoinRoom(user.Id, new JoinRoomRequest {
                 LobbyId = "sample-training",
                 RoomId = room.Id

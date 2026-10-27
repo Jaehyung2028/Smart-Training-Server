@@ -1,4 +1,4 @@
-// 공개 콘텐츠 트리 응답 객체입니다.
+﻿// 공개 콘텐츠 트리 응답 객체입니다.
 namespace Smart_Training_Server.Responses.Lobby
 {
     public class ContentQueryResponse
@@ -17,6 +17,12 @@ namespace Smart_Training_Server.Responses.Lobby
 
         // 콘텐츠의 표시 제목입니다.
         public string Title { get; init; } = string.Empty;
+
+        // category: 분류, video: 비디오 시청, scenario: 공구를 사용하는 시나리오 실습, model: 3D 모델 둘러보기입니다. 실제 표시 방식은 Unity가 이 값을 기준으로 결정합니다.
+        public string ContentType { get; init; } = string.Empty;
+
+        // Unity Addressables의 기본 콘텐츠 프리팹 주소입니다. 빈 값은 아직 리소스를 등록하지 않은 상태입니다.
+        public string AssetId { get; init; } = string.Empty;
 
         // 하위 콘텐츠 목록입니다. 조회 응답도 같은 구조를 재귀적으로 사용합니다.
         public IReadOnlyList<ContentQueryResponse> Children { get; init; } = Array.Empty<ContentQueryResponse>();

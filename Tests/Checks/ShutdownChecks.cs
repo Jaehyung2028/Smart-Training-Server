@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 using Smart_Training_Server.Options;
 using Smart_Training_Server.Requests.Auth;
 using Smart_Training_Server.Requests.Lobby;
@@ -89,7 +89,7 @@ internal static class ShutdownChecks
                 a.Id,
                 new CreateRoomRequest {
                     LobbyId = "sample-training",
-                    ContentId = "sample-training",
+                    ContentId = "sample-training", ContentNodeId = 2,
                     RoomName = "scheduled-room",
                     MaxUsers = 2
                 }

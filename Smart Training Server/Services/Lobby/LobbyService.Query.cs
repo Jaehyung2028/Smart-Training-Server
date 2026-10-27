@@ -1,4 +1,4 @@
-using Smart_Training_Server.Models;
+﻿using Smart_Training_Server.Models;
 using Smart_Training_Server.Responses.Lobby;
 
 // 내부 로비 정보를 공개용 응답으로 변환합니다. 서버 비밀값과 실행 파일 경로는 이 목록 응답에 포함하지 않습니다.
@@ -13,6 +13,18 @@ namespace Smart_Training_Server.Services.Lobby
             {
                 return lobbies.Values.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id, StringComparer.Ordinal).Select(ToLobbySummary).ToArray();
             }
+        }
+
+        // 최상위 콘텐츠 하나가 교육과정 하나입니다. 로그인 전에는 필요한 공개 정보만 전달합니다.
+        public IReadOnlyList<CourseSummaryResponse> GetCourses()
+        {
+            return GetLobbySummaries().Select(lobby => new CourseSummaryResponse
+            {
+                Id = lobby.Id,
+                Name = lobby.Name,
+                CanEnter = lobby.OperatingMode == "running" && !lobby.IsMaintenance && lobby.ShutdownState == "none",
+                UnavailableReason = lobby.OperatingReason
+            }).ToArray();
         }
 
         // 로비 하나를 요약 응답으로 변환합니다. 존재하지 않으면 null입니다.
@@ -72,6 +84,8 @@ namespace Smart_Training_Server.Services.Lobby
                 ParentId = content.ParentId,
                 Depth = content.Depth,
                 Title = content.Title,
+                ContentType = content.ContentType,
+                AssetId = content.AssetId,
                 Children = content.Children.Select(ToContentQuery).ToArray()
 
             };

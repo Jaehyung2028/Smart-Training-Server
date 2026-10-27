@@ -5,6 +5,9 @@ namespace Smart_Training_Server.Responses.Room
 {
     public sealed class RoomMasterResponse : BaseResponse
     {
+        // 전용 서버가 해당 콘텐츠에 필요한 네트워크 오브젝트를 준비할 때 사용합니다.
+        public string ContentType { get; set; } = string.Empty;
+
         // 현재 방장 사용자 ID입니다.
         public string MasterUserId { get; set; } = string.Empty;
 

@@ -2,81 +2,136 @@
   {
     "rootContent": "sample-training",
     "id": 1,
-    "title": "테스트 훈련 콘텐츠",
+    "title": "장비 기초 교육 (샘플)",
     "contentType": "category",
     "children": [
       {
         "id": 2,
-        "title": "기본 훈련 단계",
+        "title": "전동 드릴 구조 둘러보기",
         "contentType": "model",
         "assetId": "content/model/training-drill",
         "children": []
+      },
+      {
+        "id": 3,
+        "title": "사용 전 학습",
+        "contentType": "category",
+        "children": [
+          {
+            "id": 4,
+            "title": "장비 사용 순서 안내 영상",
+            "contentType": "video",
+            "assetId": "content/video/equipment-guide",
+            "children": []
+          },
+          {
+            "id": 6,
+            "title": "현장 연습",
+            "contentType": "category",
+            "children": [
+              {
+                "id": 5,
+                "title": "작업 전 공구 점검 실습",
+                "contentType": "scenario",
+                "assetId": "content/scenario/tool-check",
+                "children": []
+              }
+            ]
+          }
+        ]
       }
     ]
   },
   {
     "rootContent": "safety-training",
     "id": 10,
-    "title": "안전 교육 훈련 (예시)",
+    "title": "작업 안전 교육 (샘플)",
     "contentType": "category",
     "children": [
       {
-        "id": 11,
-        "title": "보호 장비 확인",
-        "contentType": "model",
-        "assetId": "",
-        "children": []
+        "id": 15,
+        "title": "안전 이론",
+        "contentType": "category",
+        "children": [
+          {
+            "id": 12,
+            "title": "작업 전 안전 수칙 영상",
+            "contentType": "video",
+            "assetId": "content/video/safety-intro",
+            "children": []
+          }
+        ]
       },
       {
-        "id": 12,
-        "title": "위험 요소 식별",
-        "contentType": "model",
-        "assetId": "",
-        "children": []
+        "id": 16,
+        "title": "안전 장비와 작업",
+        "contentType": "category",
+        "children": [
+          {
+            "id": 14,
+            "title": "보호 장비 구조 둘러보기",
+            "contentType": "model",
+            "assetId": "content/model/safety-equipment",
+            "children": []
+          },
+          {
+            "id": 11,
+            "title": "볼트 풀기 및 결과 확인 실습",
+            "contentType": "scenario",
+            "assetId": "content/scenario/tool-assembly",
+            "children": []
+          }
+        ]
       }
     ]
   },
   {
     "rootContent": "emergency-training",
     "id": 20,
-    "title": "비상 대응 훈련 (예시)",
+    "title": "비상 대응 교육 (샘플)",
     "contentType": "category",
     "children": [
-      {
-        "id": 21,
-        "title": "대피 경로 확인",
-        "contentType": "model",
-        "assetId": "",
-        "children": []
-      },
       {
         "id": 22,
-        "title": "팀원 집결 확인",
-        "contentType": "model",
-        "assetId": "",
-        "children": []
-      }
-    ]
-  },
-  {
-    "rootContent": "222emergency-training",
-    "id": 30,
-    "title": "222비상 대응 훈련 (예시)",
-    "contentType": "category",
-    "children": [
-      {
-        "id": 31,
-        "title": "dddd대피 경로 확인",
-        "contentType": "model",
-        "assetId": "",
+        "title": "비상 대응 순서 안내 영상",
+        "contentType": "video",
+        "assetId": "content/video/emergency-guide",
         "children": []
       },
       {
-        "id": 32,
-        "title": "dddd팀원 집결 확인",
-        "contentType": "model",
-        "assetId": "",
-        "children": []
+        "id": 23,
+        "title": "현장 대응",
+        "contentType": "category",
+        "children": [
+          {
+            "id": 24,
+            "title": "장비 이해",
+            "contentType": "category",
+            "children": [
+              {
+                "id": 26,
+                "title": "소화기 구조 둘러보기",
+                "contentType": "model",
+                "assetId": "content/model/extinguisher",
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": 25,
+            "title": "대피 준비",
+            "contentType": "category",
+            "children": [
+              {
+                "id": 21,
+                "title": "대피 전 안전 확인 실습",
+                "contentType": "scenario",
+                "assetId": "content/scenario/evacuation-check",
+                "children": []
+              }
+            ]
+          }
+        ]
       }
     ]
   }

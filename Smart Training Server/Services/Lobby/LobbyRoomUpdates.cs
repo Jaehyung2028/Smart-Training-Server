@@ -1,4 +1,3 @@
-﻿using System.Net.Http.Headers;
 using Smart_Training_Server.Models;
 using Smart_Training_Server.Responses.Lobby;
 using Smart_Training_Server.Responses.Room;
@@ -13,9 +12,7 @@ namespace Smart_Training_Server.Services.Lobby
     public sealed partial class LobbyRoomUpdates
     {
         private readonly LobbyService lobbies;
-
         private readonly UserService users;
-
         private readonly RoomService rooms;
 
         // 생성에 필요한 값을 전달받아 초기화합니다.
@@ -26,6 +23,7 @@ namespace Smart_Training_Server.Services.Lobby
             this.rooms = rooms;
         }
 
+
         private sealed class Subscription
         {
             // 생성에 필요한 값을 전달받아 초기화합니다.
@@ -34,6 +32,7 @@ namespace Smart_Training_Server.Services.Lobby
                 this.LobbyId = lobbyId;
                 this.Token = token;
             }
+
 
             // 대상 또는 소속 로비의 ID입니다.
             public string LobbyId { get; }
@@ -45,37 +44,41 @@ namespace Smart_Training_Server.Services.Lobby
             public bool NeedsSnapshot { get; set; } = true;
         }
 
+
         // 공개 응답은 불변 record이므로 JSON 문자열을 만들지 않고 값으로 비교할 수 있습니다.
         private sealed record ListingSnapshot(
-IReadOnlyList<LobbySummaryResponse> Lobbies,
-IReadOnlyList<RoomSummaryResponse> Rooms,
-IReadOnlyList<LobbyParticipantResponse> Participants
-)
+            IReadOnlyList<LobbySummaryResponse> Lobbies,
+            IReadOnlyList<RoomSummaryResponse> Rooms,
+            IReadOnlyList<LobbyParticipantResponse> Participants
+        )
         {
             public bool HasSameValues(ListingSnapshot other)
             {
-                return Lobbies.SequenceEqual(other.Lobbies) && Rooms.SequenceEqual(other.Rooms) && Participants.SequenceEqual(other.Participants);
+                return Lobbies.SequenceEqual(other.Lobbies) &&
+                    Rooms.SequenceEqual(other.Rooms) &&
+                    Participants.SequenceEqual(other.Participants);
             }
         }
 
+
         // 구독자마다 같은 목록을 보관하지 않고 로비별로 이전 조회 결과 하나만 유지합니다.
         private readonly Dictionary<string, ListingSnapshot> lastSnapshots = new();
-
         // 현재 SignalR 연결의 구독 대상·토큰·첫 알림 여부를 보관합니다.
         private readonly Dictionary<string, Subscription> subscriptions = new();
 
         // 구독 변경·그룹 갱신·전송을 순서대로 처리합니다. 비동기 대기에는 lock 대신 SemaphoreSlim을 사용합니다.
         internal SemaphoreSlim GroupGate { get; } = new(1, 1);
 
+
         // 실제 SignalR에 등록한 그룹입니다. 구독 정보와 비교해 이전 그룹을 제거할 때 사용합니다.
         private readonly Dictionary<string, string> registeredGroups = new();
-
         private readonly Dictionary<string, string> registeredRoomGroups = new();
 
         public static string GetGroupName(string lobbyId)
         {
             return "lobby:" + lobbyId;
         }
+
 
         // 호출자는 GroupGate를 보유합니다. 지정한 그룹만 갱신하며, 생략하면 전체를 갱신합니다.
         // 토큰·소속이 끝난 연결은 전송 전에 그룹에서 먼저 뺍니다.
@@ -84,16 +87,21 @@ IReadOnlyList<LobbyParticipantResponse> Participants
             Dictionary<string, string> desired;
             lock (users.MembershipLock)
             {
-                desired = subscriptions.Where(pair => groupName == null || GetGroupName(pair.Value.LobbyId) == groupName).Where(pair => GetSubscribedUser(pair.Value) != null).ToDictionary(pair => pair.Key, pair => GetGroupName(pair.Value.LobbyId));
+                desired = subscriptions.Where(pair => groupName == null || GetGroupName(pair.Value.LobbyId) == groupName).Where(pair => GetSubscribedUser(pair.Value) != null).ToDictionary(
+                    pair => pair.Key,
+                    pair => GetGroupName(pair.Value.LobbyId)
+                );
             }
 
             await ApplyGroupsAsync(groups, registeredGroups, desired, groupName);
         }
 
+
         public static string GetRoomGroupName(string roomId)
         {
             return "room:" + roomId;
         }
+
 
         // GroupGate 안에서 호출합니다. 방의 실제 접속 토큰까지 유효한 연결만 방 그룹에 남깁니다.
         internal async Task SynchronizeRoomGroupsAsync(IGroupManager groups, string? groupName = null)
@@ -123,6 +131,7 @@ IReadOnlyList<LobbyParticipantResponse> Participants
 
             await ApplyGroupsAsync(groups, registeredRoomGroups, desired, groupName);
         }
+
 
         // 로비와 방이 동일한 그룹 추가·제거 절차를 사용합니다.
         private async Task ApplyGroupsAsync(
@@ -162,6 +171,7 @@ IReadOnlyList<LobbyParticipantResponse> Participants
             }
         }
 
+
         // 전송 실패 후 다음 주기에 변경 알림을 다시 만들 수 있게 합니다.
         internal void InvalidateSnapshots()
         {
@@ -171,11 +181,13 @@ IReadOnlyList<LobbyParticipantResponse> Participants
             }
         }
 
+
         private UserInfo? GetSubscribedUser(Subscription subscription)
         {
             var user = users.FindByAccessToken(subscription.Token);
             return user != null && (subscription.LobbyId.Length == 0 || user.CurrentLobbyId == subscription.LobbyId) ? user : null;
         }
+
 
         // 헤더 토큰과 실제 로비 소속을 확인한 연결만 구독 저장소에 넣습니다.
         public bool Subscribe(string connectionId, string lobbyId, string authorization)
@@ -183,14 +195,11 @@ IReadOnlyList<LobbyParticipantResponse> Participants
             lock (users.MembershipLock)
             {
                 // HTTP 인증 헤더 구문은 .NET 파서에 맡기고, 토큰 유효성과 소속은 아래에서 검사합니다.
-                if (!AuthenticationHeaderValue.TryParse(authorization, out var header) ||
-                    !header.Scheme.Equals("Bearer", StringComparison.OrdinalIgnoreCase) ||
-                    string.IsNullOrEmpty(header.Parameter))
+                if (!UserAuthentication.TryReadBearer(authorization, out var token))
                 {
                     return false;
                 }
 
-                var token = header.Parameter;
                 var user = users.FindByAccessToken(token);
                 if (user == null || lobbyId == null || (lobbyId.Length > 0 && user.CurrentLobbyId != lobbyId))
                 {
@@ -203,6 +212,7 @@ IReadOnlyList<LobbyParticipantResponse> Participants
             }
         }
 
+
         // SignalR 연결에 해당하는 목록·방 채팅 구독을 지웁니다. 사용자 소속 정리와는 다른 단계입니다.
         public void Remove(string connectionId)
         {
@@ -212,6 +222,7 @@ IReadOnlyList<LobbyParticipantResponse> Participants
                 roomChatSubscriptions.Remove(connectionId);
             }
         }
+
 
         // 구독된 로비만 검사하고 한 주기에서 변경 알림을 모아 보냅니다.
         // 이전 스냅샷과 현재 목록을 비교합니다. 바뀌지 않았다면 알림을 보내지 않고, 인증·소속이 끝난 구독은 제거합니다.
@@ -277,12 +288,11 @@ IReadOnlyList<LobbyParticipantResponse> Participants
         }
     }
 
+
     public sealed class LobbyRoomUpdatesService : BackgroundService
     {
         private readonly LobbyRoomUpdates updates;
-
         private readonly IHubContext<LobbyUpdatesHub> hub;
-
         private readonly ILogger<LobbyRoomUpdatesService> logger;
 
         // 생성에 필요한 값을 전달받아 초기화합니다.
@@ -296,6 +306,7 @@ IReadOnlyList<LobbyParticipantResponse> Participants
             this.hub = hub;
             this.logger = logger;
         }
+
 
         // 목록 변경을 주기적으로 수집해 구독한 연결에 변경·구독 종료 알림을 보냅니다. stoppingToken은 API 종료 시 반복 대기를 끝내는 취소 신호입니다.
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -315,12 +326,20 @@ IReadOnlyList<LobbyParticipantResponse> Participants
                         await updates.SynchronizeRoomGroupsAsync(hub.Groups);
                         foreach (var change in changes.Where(change => change.Ended))
                         {
-                            await hub.Clients.Client(change.ConnectionId).SendAsync("SubscriptionEnded", change.LobbyId, cancellationToken: stoppingToken);
+                            await hub.Clients.Client(change.ConnectionId).SendAsync(
+                                "SubscriptionEnded",
+                                change.LobbyId,
+                                cancellationToken: stoppingToken
+                            );
                         }
 
                         foreach (var lobbyId in changes.Where(change => !change.Ended).Select(change => change.LobbyId).Distinct())
                         {
-                            await hub.Clients.Group(LobbyRoomUpdates.GetGroupName(lobbyId)).SendAsync("RoomsChanged", lobbyId, cancellationToken: stoppingToken);
+                            await hub.Clients.Group(LobbyRoomUpdates.GetGroupName(lobbyId)).SendAsync(
+                                "RoomsChanged",
+                                lobbyId,
+                                cancellationToken: stoppingToken
+                            );
                         }
                     }
                     catch (Exception error)when (!stoppingToken.IsCancellationRequested)

@@ -24,7 +24,6 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "로비, 방, 위임할 참가자를 지정해주세요."
-
                     };
                 }
 
@@ -35,7 +34,6 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "해당 로비에서 방을 찾을 수 없습니다."
-
                     };
                 }
 
@@ -45,7 +43,6 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "현재 방장만 방장을 위임할 수 있습니다."
-
                     };
                 }
 
@@ -59,7 +56,6 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "같은 방에 접속 중인 참가자에게만 위임할 수 있습니다."
-
                     };
                 }
 
@@ -71,7 +67,6 @@ namespace Smart_Training_Server.Services.Room
                         MasterUserId = authenticatedUserId,
                         IsEntryLocked = room.IsEntryLocked,
                         Message = "이미 방장입니다."
-
                     };
                 }
 
@@ -83,10 +78,10 @@ namespace Smart_Training_Server.Services.Room
                     MasterUserId = target.Id,
                     IsEntryLocked = room.IsEntryLocked,
                     Message = "방장을 위임했습니다."
-
                 };
             }
         }
+
 
         // 현재 등록된 전용 서버만 방장 정보를 조회할 수 있습니다.
         // Unity 방 서버가 ASP.NET의 최신 방장·잠금·설정·진행 상태를 받아갈 때 사용합니다.
@@ -100,7 +95,6 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "등록된 방 서버만 조회할 수 있습니다."
-
                     };
                 }
 
@@ -111,7 +105,6 @@ namespace Smart_Training_Server.Services.Room
                     {
                         Success = false,
                         Message = "방을 찾을 수 없습니다."
-
                     };
                 }
 
@@ -123,15 +116,21 @@ namespace Smart_Training_Server.Services.Room
                     RoomName = room.Name,
                     MaxUsers = room.MaxUsers,
                     IsRunning = room.IsRunning,
+                    ContentNodeId = room.Content.Id,
                     ContentType = room.Content.ContentType,
+                    AssetId = room.Content.AssetId,
                     PhaseRevision = room.PhaseRevision
-
                 };
             }
         }
 
+
         // 방장 권한을 검사한 뒤 등록된 Unity 서버에 강퇴를 요청합니다. API가 네트워크 연결을 직접 끊지는 않습니다.
-        public async Task<BaseResponse> KickRoomUserAsync(string authenticatedUserId, RoomParticipantRequest request, IHubContext<RoomHub> roomHub)
+        public async Task<BaseResponse> KickRoomUserAsync(
+            string authenticatedUserId,
+            RoomParticipantRequest request,
+            IHubContext<RoomHub> roomHub
+        )
         {
             // 잠금 안에서 대상 연결과 토큰을 확정하고, 실제 네트워크 전송은 잠금 밖에서 수행합니다.
             RoomDisconnectNotice notice;
@@ -188,6 +187,7 @@ namespace Smart_Training_Server.Services.Room
                 return Result(false, "강퇴 요청을 전달하지 못했습니다. 접속 상태를 확인한 뒤 다시 시도해주세요.");
             }
         }
+
 
         // 방을 종료 중으로 표시하고 예약·소속을 해제한 뒤 Unity 서버에 종료를 알립니다. 실패해도 finally에서 정리합니다.
         public async Task<BaseResponse> CloseRoomAsync(string userId, RoomMembershipRequest request, IHubContext<RoomHub> hub)
@@ -259,12 +259,17 @@ namespace Smart_Training_Server.Services.Room
             return Result(true, "방을 닫았습니다. 로비로 돌아왔습니다.");
         }
 
+
         // 방장 동작에 공통인 현재 접속·소속·방장 권한을 한곳에서 확인합니다.
         // 호출자는 MembershipLock을 보유합니다. 종료·진행 상태 등 설정별 제한은 각 함수에서 검사합니다.
         private bool IsConnectedMaster(RoomInfo room, string userId)
         {
             var user = string.IsNullOrWhiteSpace(userId) ? null : userService.FindById(userId);
-            return user != null && user.CurrentRoomId == room.Id && room.Users.ContainsKey(userId) && connectedTokens.ContainsKey(userId) && room.MasterUserId == userId;
+            return user != null &&
+                user.CurrentRoomId == room.Id &&
+                room.Users.ContainsKey(userId) &&
+                connectedTokens.ContainsKey(userId) &&
+                room.MasterUserId == userId;
         }
     }
 }

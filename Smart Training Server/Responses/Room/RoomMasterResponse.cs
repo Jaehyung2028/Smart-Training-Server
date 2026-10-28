@@ -6,7 +6,13 @@ namespace Smart_Training_Server.Responses.Room
     public sealed class RoomMasterResponse : BaseResponse
     {
         // 전용 서버가 해당 콘텐츠에 필요한 네트워크 오브젝트를 준비할 때 사용합니다.
+        // 같은 교육과정 안에서 사용할 최하위 노드입니다. Unity는 참가자에게 이 ID를 동기화합니다.
+        public int ContentNodeId { get; set; }
+
         public string ContentType { get; set; } = string.Empty;
+
+        // 전용 서버가 클라이언트 입력에 의존하지 않고 실습 단계 원본을 읽는 Addressables 주소입니다.
+        public string AssetId { get; set; } = string.Empty;
 
         // 현재 방장 사용자 ID입니다.
         public string MasterUserId { get; set; } = string.Empty;

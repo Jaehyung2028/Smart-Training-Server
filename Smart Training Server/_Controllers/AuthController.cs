@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Smart_Training_Server.Requests.Auth;
@@ -11,11 +10,14 @@ namespace Smart_Training_Server._Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    // 인증 응답을 캐시에 남기지 않습니다. ASP.NET 기본 필터가 아래 두 헤더를 모든 인증 API에 적용합니다.
+    // Cache-Control: no-store,no-cache는 저장과 캐시 재사용을 막도록 요청합니다.
+    // Pragma: no-cache는 과거 HTTP/1.0 캐시와 호환하기 위한 보조 헤더입니다.
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     // HTTP 요청과 응답을 담당하는 입구입니다. 실제 사용자·세션 규칙은 UserService에서 처리합니다.
     public class AuthController : ControllerBase
     {
         private readonly UserService userService;
-
         private readonly UserLifecycleService lifecycleService;
 
         // 생성자입니다. 이 객체를 만드는 데 필요한 서비스나 설정을 전달받아 초기화합니다.
@@ -25,18 +27,12 @@ namespace Smart_Training_Server._Controllers
             this.lifecycleService = lifecycleService;
         }
 
+
         [HttpPost("login")]
         [AllowAnonymous]
         // 로그인 입력을 UserService에 전달하고 성공이면 200, 업무 실패면 400으로 응답합니다.
         public ActionResult<LoginResponse> Login(LoginRequest request)
         {
-            // Response는 클라이언트에 보낼 HTTP 응답이고, Headers는 본문 외에 전달하는 처리 지침입니다.
-            // Cache-Control: no-store를 보내 브라우저·중간 캐시가 이 응답을 저장하지 않도록 요청합니다.
-            // 인증 정보나 현재 상태가 캐시에 남거나 저장된 예전 응답으로 재사용되는 것을 막기 위한 설정입니다.
-            Response.Headers.CacheControl = "no-store";
-            // Pragma는 과거 HTTP/1.0 방식의 캐시 제어와 호환하기 위한 보조 헤더입니다.
-            // 응답의 Pragma: no-cache는 모든 캐시에서 보장되지 않으므로, 위 Cache-Control: no-store가 주 설정입니다.
-            Response.Headers.Pragma = "no-cache";
             LoginResponse response = userService.Login(request);
             if (!response.Success)
             {
@@ -46,19 +42,13 @@ namespace Smart_Training_Server._Controllers
             return Ok(response);
         }
 
+
         [HttpGet("me")]
         [Authorize]
         // 인증 Claim에서 사용자 ID를 얻어 현재 상태를 조회합니다. 사용자가 사라졌으면 401로 재인증을 요구합니다.
         public ActionResult<CurrentUserResponse> Me()
         {
-            // Response는 클라이언트에 보낼 HTTP 응답이고, Headers는 본문 외에 전달하는 처리 지침입니다.
-            // Cache-Control: no-store를 보내 브라우저·중간 캐시가 이 응답을 저장하지 않도록 요청합니다.
-            // 인증 정보나 현재 상태가 캐시에 남거나 저장된 예전 응답으로 재사용되는 것을 막기 위한 설정입니다.
-            Response.Headers.CacheControl = "no-store";
-            // Pragma는 과거 HTTP/1.0 방식의 캐시 제어와 호환하기 위한 보조 헤더입니다.
-            // 응답의 Pragma: no-cache는 모든 캐시에서 보장되지 않으므로, 위 Cache-Control: no-store가 주 설정입니다.
-            Response.Headers.Pragma = "no-cache";
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? throw new InvalidOperationException("인증된 사용자 ID가 없습니다.");
+            var userId = User.GetRequiredUserId();
             var user = userService.GetCurrentUser(userId);
             if (user == null)
             {
@@ -69,35 +59,28 @@ namespace Smart_Training_Server._Controllers
             return Ok(user);
         }
 
+
         [HttpPost("logout")]
         [Authorize]
         // 인증된 요청자의 로그아웃을 소속·세션 정리 서비스에 전달합니다.
         public async Task<ActionResult<BaseResponse>> Logout()
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? throw new InvalidOperationException("인증된 사용자 ID가 없습니다.");
+            var userId = User.GetRequiredUserId();
             return Ok(await lifecycleService.LogoutAsync(userId));
         }
+
 
         // 만료 직후에는 일반 인증이 실패하므로 이 함수에서 유예 기한을 직접 검사합니다.
         [HttpPost("refresh")]
         [AllowAnonymous]
         public ActionResult<LoginResponse> Refresh()
         {
-            // Response는 클라이언트에 보낼 HTTP 응답이고, Headers는 본문 외에 전달하는 처리 지침입니다.
-            // Cache-Control: no-store를 보내 브라우저·중간 캐시가 이 응답을 저장하지 않도록 요청합니다.
-            // 인증 정보나 현재 상태가 캐시에 남거나 저장된 예전 응답으로 재사용되는 것을 막기 위한 설정입니다.
-            Response.Headers.CacheControl = "no-store";
-            // Pragma는 과거 HTTP/1.0 방식의 캐시 제어와 호환하기 위한 보조 헤더입니다.
-            // 응답의 Pragma: no-cache는 모든 캐시에서 보장되지 않으므로, 위 Cache-Control: no-store가 주 설정입니다.
-            Response.Headers.Pragma = "no-cache";
-            if (!System.Net.Http.Headers.AuthenticationHeaderValue.TryParse(Request.Headers.Authorization.ToString(), out var header) ||
-                !header.Scheme.Equals("Bearer", StringComparison.OrdinalIgnoreCase) ||
-                header.Parameter == null)
+            if (!UserAuthentication.TryReadBearer(Request.Headers.Authorization.ToString(), out var token))
             {
                 return RefreshUnauthorized();
             }
 
-            var response = userService.RefreshSession(header.Parameter);
+            var response = userService.RefreshSession(token);
             if (!response.Success)
             {
                 return RefreshUnauthorized();
@@ -105,6 +88,7 @@ namespace Smart_Training_Server._Controllers
 
             return Ok(response);
         }
+
 
         // 갱신 실패를 401과 Bearer 재인증 헤더로 응답합니다.
         private UnauthorizedObjectResult RefreshUnauthorized()

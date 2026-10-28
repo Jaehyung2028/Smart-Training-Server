@@ -86,6 +86,37 @@ Check(rooms.ConfirmConnection(room.Id, "auto-server", guest.Id, guestAdmission.A
     "guest connecting first preserves reserved creator master");
 Check(rooms.ConfirmConnection(room.Id, "auto-server", user.Id, creatorAdmission.AdmissionToken).Success && room.MasterUserId == user.Id,
     "creator confirms as initial master");
+// 방 내 콘텐츠 변경은 방장·대기·예약·교육과정 범위를 모두 확인합니다.
+lobby.Contents["switch-test"] = new ContentInfo
+{
+    RootContent = "switch-test", Id = 40,
+    Children = new List<ContentInfo> { new ContentInfo { RootContent = "switch-test", Id = 42, Title = "changed", ContentType = "video", AssetId = "content/video/test" } }
+};
+var contentChange = new ChangeRoomContentRequest { LobbyId = lobby.Id, RoomId = room.Id, ContentId = "switch-test", ContentNodeId = 42 };
+Check(!rooms.ChangeRoomContent(guest.Id, contentChange).Success, "guest cannot change content");
+room.IsRunning = true;
+Check(!rooms.ChangeRoomContent(user.Id, contentChange).Success, "running room cannot change content");
+room.IsRunning = false;
+room.ReservedUsers = 1;
+Check(!rooms.ChangeRoomContent(user.Id, contentChange).Success, "pending admission blocks content change");
+room.ReservedUsers = 0;
+contentChange.ContentNodeId = 40;
+Check(!rooms.ChangeRoomContent(user.Id, contentChange).Success, "category cannot be selected");
+contentChange.ContentNodeId = 999;
+Check(!rooms.ChangeRoomContent(user.Id, contentChange).Success, "missing content cannot be selected");
+contentChange.ContentId = "another-course";
+contentChange.ContentNodeId = 42;
+Check(!rooms.ChangeRoomContent(user.Id, contentChange).Success, "content outside current course is rejected");
+contentChange.ContentId = "switch-test";
+var beforeContentRevision = room.PhaseRevision;
+Check(rooms.ChangeRoomContent(user.Id, contentChange).Success && room.Content.Id == 42 && room.PhaseRevision == beforeContentRevision + 1,
+    "master changes waiting room content and advances revision");
+Check(room.Users.Count == 2 && room.MasterUserId == user.Id && !room.IsRunning, "content change retains participants and master");
+Check(rooms.GetRoomMaster(room.Id, "auto-server").ContentNodeId == 42, "dedicated server receives changed node");
+Check(!rooms.SetRoomPhase(room.Id, "auto-server", user.Id, creatorAdmission.AdmissionToken, true, System.Text.Json.JsonSerializer.Serialize(new[] {user.Id, guest.Id}), beforeContentRevision).Success,
+    "old content revision cannot start room");
+Check(rooms.ChangeRoomContent(user.Id, contentChange).Success && room.PhaseRevision == beforeContentRevision + 1, "same content selection is idempotent");
+lobby.Contents.Remove("switch-test", out _);
 rooms.LeaveRoom(guest.Id, new RoomMembershipRequest { LobbyId = lobby.Id, RoomId = room.Id });
 rooms.LeaveRoom(user.Id, new RoomMembershipRequest { LobbyId = lobby.Id, RoomId = room.Id });
 room = rooms.CreateRoom(user.Id, new CreateRoomRequest { LobbyId = lobby.Id, RoomName = "auto-cancel", ContentId = "test", MaxUsers = 2 }).Room!;

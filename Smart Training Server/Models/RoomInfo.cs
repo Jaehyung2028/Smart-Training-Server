@@ -11,6 +11,7 @@ namespace Smart_Training_Server.Models
         // 비밀번호 해시에 사용하는 난수입니다. JsonIgnore가 있으므로 API 응답 JSON에 포함하지 않습니다.
         public byte[] PasswordSalt { get; set; } = Array.Empty<byte>();
 
+
         [System.Text.Json.Serialization.JsonIgnore]
         // 비밀번호 원문 대신 저장하는 검증용 해시입니다. 목록에 공개하지 않습니다.
         public byte[] PasswordHash { get; set; } = Array.Empty<byte>();
@@ -18,9 +19,11 @@ namespace Smart_Training_Server.Models
         // 해시 유무로 비밀번호 방인지 판단합니다. 클라이언트에는 이 여부를 알려줄 수 있습니다.
         public bool HasPassword => PasswordHash.Length > 0;
 
+
         [System.Text.Json.Serialization.JsonIgnore]
         // 종료 처리 중인 방에 새로운 작업이 들어오는 것을 막기 위한 내부 상태입니다.
         public bool IsClosing { get; set; }
+
 
         [System.Text.Json.Serialization.JsonIgnore]
         // 실행한 Unity 방 서버를 등록할 때 확인하는 비밀값입니다. 사용자 인증 토큰과 다릅니다.
@@ -70,6 +73,11 @@ namespace Smart_Training_Server.Models
 
         // 현재 방장 사용자 ID입니다. 방장 권한은 이 값과 실제 접속 상태를 함께 검사합니다.
         public string MasterUserId { get; set; } = string.Empty;
+
+
+        [System.Text.Json.Serialization.JsonIgnore]
+        // 예약이나 프로세스 시작만으로 공개하지 않습니다. 현재 방장이 실제 참가자에 포함돼야 목록에 표시합니다.
+        public bool IsListed => !IsClosing && MasterUserId.Length > 0 && Users.ContainsKey(MasterUserId);
 
         // 실제 접속이 확정된 참가자 목록입니다. 키는 사용자 ID이고 예약자는 별도 관리합니다.
         public ConcurrentDictionary<string, UserInfo> Users { get; set; } = new();

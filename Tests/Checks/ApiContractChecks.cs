@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
@@ -43,7 +43,11 @@ internal static class ApiContractChecks
             }
 
             Check(
-                response.StatusCode == status && !root.GetProperty("success").GetBoolean() && root.GetProperty("errorCode").GetString() == code && !string.IsNullOrEmpty(root.GetProperty("message").GetString()) && !string.IsNullOrEmpty(root.GetProperty("traceId").GetString()),
+                response.StatusCode == status &&
+                !root.GetProperty("success").GetBoolean() &&
+                root.GetProperty("errorCode").GetString() == code &&
+                !string.IsNullOrEmpty(root.GetProperty("message").GetString()) &&
+                !string.IsNullOrEmpty(root.GetProperty("traceId").GetString()),
                 "uniform HTTP error " + code
             );
             Check(
@@ -52,21 +56,12 @@ internal static class ApiContractChecks
             );
         }
 
-        var users = new UserService(Options.Create(new AuthOptions {
-                    NameMinLength = 1,
-                    NameMaxLength = 20
-                }));
+        var users = new UserService(Options.Create(new AuthOptions { NameMinLength = 1, NameMaxLength = 20 }));
         var lobbies = TestCatalogLobbies.Create(users, "standard");
         var rooms = new RoomService(
             lobbies,
             users,
-            Options.Create(new RoomOptions {
-                    MinUsers = 1,
-                    MaxUsers = 10,
-                    NameMinLength = 1,
-                    NameMaxLength = 20,
-                    ServerExecutablePath = "missing-test-server.exe"
-                })
+            Options.Create(new RoomOptions { MinUsers = 1, MaxUsers = 10, NameMinLength = 1, NameMaxLength = 20, ServerExecutablePath = "missing-test-server.exe" })
         );
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
         builder.WebHost.UseUrls("http://127.0.0.1:0");
@@ -75,20 +70,20 @@ internal static class ApiContractChecks
         builder.Services.AddAuthentication(UserTokenAuthenticationHandler.SchemeName).AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, UserTokenAuthenticationHandler>(UserTokenAuthenticationHandler.SchemeName, _ =>
         {
         });
-        builder.Services.AddAuthorization(options => options.AddPolicy("TestForbidden", policy => policy.RequireClaim("absent-claim")));
+        builder.Services.AddAuthorization(options => options.AddPolicy(
+            "TestForbidden",
+            policy => policy.RequireClaim("absent-claim")
+        ));
         builder.Services.AddTrainingApiControllers().AddApplicationPart(typeof(RoomController).Assembly);
         await using var app = builder.Build();
         app.UseTrainingApiErrors();
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapControllers();
-        app.MapGet(
-            "/api/test-throw",
-            () =>
+        app.MapGet("/api/test-throw", () =>
         {
             throw new InvalidOperationException("sensitive-test-exception");
-        }
-        ).RequireAuthorization();
+        }).RequireAuthorization();
         app.MapGet("/api/test-forbidden", () => "unreachable").RequireAuthorization("TestForbidden");
         await app.StartAsync();
         try
@@ -105,19 +100,40 @@ internal static class ApiContractChecks
             );
             // 교육과정 목록만 로그인 전에 공개하고 기존 로비·참가자 API의 인증은 유지합니다.
             var courseResponse = await client.GetAsync("api/Lobby/courses");
-            Check(courseResponse.StatusCode == HttpStatusCode.OK, "anonymous course catalog is available before login");
+            Check(
+                courseResponse.StatusCode == HttpStatusCode.OK,
+                "anonymous course catalog is available before login"
+            );
             using (var courseJson = JsonDocument.Parse(await courseResponse.Content.ReadAsStringAsync()))
             {
                 var course = courseJson.RootElement.EnumerateArray().Single();
-                Check(course.GetProperty("id").GetString() == "standard" && course.GetProperty("canEnter").GetBoolean(),
-                    "anonymous course ID points to its catalog lobby");
-                Check(course.EnumerateObject().Count() == 4 && !course.TryGetProperty("users", out _) && !course.TryGetProperty("serverToken", out _),
-                    "course catalog exposes only public selection fields");
+                Check(
+                    course.GetProperty("id").GetString() == "standard" && course.GetProperty("canEnter").GetBoolean(),
+                    "anonymous course ID points to its catalog lobby"
+                );
+                Check(
+                    course.EnumerateObject().Count() == 4 &&
+                    !course.TryGetProperty("users", out _) &&
+                    !course.TryGetProperty("serverToken", out _),
+                    "course catalog exposes only public selection fields"
+                );
             }
-            Check(courseResponse.Headers.CacheControl?.NoStore == true, "course availability is not cached");
+
+            Check(
+                courseResponse.Headers.CacheControl?.NoStore == true,
+                "course availability is not cached"
+            );
             await Error(await client.GetAsync("api/Lobby"), HttpStatusCode.Unauthorized, "unauthorized");
-            await Error(await client.GetAsync("api/Lobby/missing/participants"), HttpStatusCode.Unauthorized, "unauthorized");
-            await Error(await client.PostAsync("api/Auth/refresh", null), HttpStatusCode.Unauthorized, "unauthorized");
+            await Error(
+                await client.GetAsync("api/Lobby/missing/participants"),
+                HttpStatusCode.Unauthorized,
+                "unauthorized"
+            );
+            await Error(
+                await client.PostAsync("api/Auth/refresh", null),
+                HttpStatusCode.Unauthorized,
+                "unauthorized"
+            );
             var login = (await (await client.PostAsJsonAsync("api/Auth/login", new { userName = "contract-user" })).Content.ReadFromJsonAsync<LoginResponse>())!;
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login.AccessToken);
             var lobby = TestCatalogLobbies.Get(lobbies, "standard");
@@ -126,7 +142,9 @@ internal static class ApiContractChecks
             {
                 var metadata = lobbyJson.RootElement;
                 Check(
-                    !metadata.TryGetProperty("ipAddress", out _) && !metadata.TryGetProperty("port", out _) && !metadata.TryGetProperty("state", out _),
+                    !metadata.TryGetProperty("ipAddress", out _) &&
+                    !metadata.TryGetProperty("port", out _) &&
+                    !metadata.TryGetProperty("state", out _),
                     "HTTP catalog lobby metadata omits dedicated-server transport fields"
                 );
             }
@@ -135,8 +153,16 @@ internal static class ApiContractChecks
                 lobbyResponse.StatusCode == HttpStatusCode.OK && lobby.Contents.ContainsKey("sample-training"),
                 "catalog lobby query route"
             );
-            await Error(await client.GetAsync($"api/Lobby/{lobby.Id}/participants"), HttpStatusCode.Forbidden, "forbidden");
-            await Error(await client.GetAsync("api/Lobby/missing/participants"), HttpStatusCode.NotFound, "not_found");
+            await Error(
+                await client.GetAsync($"api/Lobby/{lobby.Id}/participants"),
+                HttpStatusCode.Forbidden,
+                "forbidden"
+            );
+            await Error(
+                await client.GetAsync("api/Lobby/missing/participants"),
+                HttpStatusCode.NotFound,
+                "not_found"
+            );
             await Error(
                 await client.PostAsJsonAsync("api/Lobby/create", new { lobbyName = "legacy" }),
                 HttpStatusCode.MethodNotAllowed,
@@ -148,7 +174,9 @@ internal static class ApiContractChecks
             );
             var participants = (await client.GetFromJsonAsync<LobbyParticipantResponse[]>($"api/Lobby/{lobby.Id}/participants"))!;
             Check(
-                participants.Length == 1 && participants[0].UserId == login.User!.Id && participants[0].ConnectionState == "lobby",
+                participants.Length == 1 &&
+                participants[0].UserId == login.User!.Id &&
+                participants[0].ConnectionState == "lobby",
                 "HTTP participant list is scoped to current lobby and has documented state"
             );
             var createdHttp = await client.PostAsJsonAsync(
@@ -156,58 +184,94 @@ internal static class ApiContractChecks
                 new { lobbyId = lobby.Id, roomName = "standard-room", contentId = "sample-training", contentNodeId = 2, maxUsers = 2 }
             );
             var room = (await createdHttp.Content.ReadFromJsonAsync<CreateRoomResponse>())!.Room!;
-            Check(createdHttp.StatusCode == HttpStatusCode.OK && room.ReservedUsers == 1 && users.FindById(login.User!.Id)!.PendingRoomId == room.Id,
-                "standard room create route atomically reserves creator");
+            Check(
+                createdHttp.StatusCode == HttpStatusCode.OK &&
+                room.ReservedUsers == 1 &&
+                users.FindById(login.User!.Id)!.PendingRoomId == room.Id,
+                "standard room create route atomically reserves creator"
+            );
             Check(
                 (await client.PostAsJsonAsync(
-                    "api/Room/create",
-                    new { lobbyId = lobby.Id, roomName = "legacy-room", contentId = "sample-training", contentNodeId = 2, maxUsers = 2 }
-                )).StatusCode == HttpStatusCode.BadRequest,
+                "api/Room/create",
+                new { lobbyId = lobby.Id, roomName = "legacy-room", contentId = "sample-training", contentNodeId = 2, maxUsers = 2 }
+            )).StatusCode == HttpStatusCode.BadRequest,
                 "standard room route rejects second creation during pending admission"
             );
             Check(
-                (await client.GetFromJsonAsync<RoomSummaryResponse[]>($"api/Lobby/{lobby.Id}/rooms"))!.Length == 1,
-                "full flow room list includes one atomically reserved room"
+                (await client.GetFromJsonAsync<RoomSummaryResponse[]>($"api/Lobby/{lobby.Id}/rooms"))!.Length == 0,
+                "full flow room list hides unconfirmed reserved creator room"
             );
             await Error(
                 await client.PostAsJsonAsync(
-                    "api/Room/create",
-                    new { lobbyId = lobby.Id, roomName = "bad-content", contentId = "missing", maxUsers = 2 }
-                ),
+                "api/Room/create",
+                new { lobbyId = lobby.Id, roomName = "bad-content", contentId = "missing", maxUsers = 2 }
+            ),
                 HttpStatusCode.BadRequest,
                 "bad_request"
             );
             await Error(
-                await client.PostAsJsonAsync("api/Room/join", new { lobbyId = lobby.Id, roomId = room.Id }),
+                await client.PostAsJsonAsync(
+                "api/Room/join",
+                new { lobbyId = lobby.Id, roomId = room.Id }
+            ),
                 HttpStatusCode.BadRequest,
                 "bad_request"
             );
-            Check(users.FindById(login.User!.Id)!.PendingRoomId == "", "missing Unity executable does not strand reservation");
+            Check(
+                users.FindById(login.User!.Id)!.PendingRoomId == "",
+                "missing Unity executable does not strand reservation"
+            );
             await Error(
-                await client.PostAsync("api/Room/create", new StringContent("{", Encoding.UTF8, "application/json")),
+                await client.PostAsync(
+                "api/Room/create",
+                new StringContent("{", Encoding.UTF8, "application/json")
+            ),
                 HttpStatusCode.BadRequest,
                 "validation_failed"
             );
             await Error(
-                await client.PostAsync("api/Room/join", new StringContent("", Encoding.UTF8, "application/json")),
+                await client.PostAsync(
+                "api/Room/join",
+                new StringContent("", Encoding.UTF8, "application/json")
+            ),
                 HttpStatusCode.BadRequest,
                 "validation_failed"
             );
             await Error(
-                await client.PostAsync("api/Room/create", new StringContent("plain", Encoding.UTF8, "text/plain")),
+                await client.PostAsync(
+                "api/Room/create",
+                new StringContent("plain", Encoding.UTF8, "text/plain")
+            ),
                 HttpStatusCode.UnsupportedMediaType,
                 "unsupported_media_type"
             );
-            await Error(await client.GetAsync($"api/Lobby/{lobby.Id}/rooms/missing"), HttpStatusCode.NotFound, "not_found");
+            await Error(
+                await client.GetAsync($"api/Lobby/{lobby.Id}/rooms/missing"),
+                HttpStatusCode.NotFound,
+                "not_found"
+            );
             await Error(await client.GetAsync("api/nonexistent"), HttpStatusCode.NotFound, "not_found");
-            await Error(await client.GetAsync("api/Auth/logout"), HttpStatusCode.MethodNotAllowed, "method_not_allowed");
+            await Error(
+                await client.GetAsync("api/Auth/logout"),
+                HttpStatusCode.MethodNotAllowed,
+                "method_not_allowed"
+            );
             await Error(await client.GetAsync("api/test-forbidden"), HttpStatusCode.Forbidden, "forbidden");
-            await Error(await client.GetAsync("api/test-throw"), HttpStatusCode.InternalServerError, "internal_error");
+            await Error(
+                await client.GetAsync("api/test-throw"),
+                HttpStatusCode.InternalServerError,
+                "internal_error"
+            );
             var renewed = (await (await client.PostAsync("api/Auth/refresh", null)).Content.ReadFromJsonAsync<LoginResponse>())!;
-            Check(renewed.Success && renewed.User!.Id == login.User.Id, "full flow refresh preserves identity");
+            Check(
+                renewed.Success && renewed.User!.Id == login.User.Id,
+                "full flow refresh preserves identity"
+            );
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", renewed.AccessToken);
             Check(
-                (await client.PostAsync("api/Auth/logout", null)).StatusCode == HttpStatusCode.OK && rooms.FindById(room.Id) == null && lobbies.FindById(lobby.Id) != null,
+                (await client.PostAsync("api/Auth/logout", null)).StatusCode == HttpStatusCode.OK &&
+                rooms.FindById(room.Id) == null &&
+                lobbies.FindById(lobby.Id) != null,
                 "full flow logout cleans rooms but retains catalog lobby"
             );
             await Error(await client.GetAsync("api/Lobby"), HttpStatusCode.Unauthorized, "unauthorized");

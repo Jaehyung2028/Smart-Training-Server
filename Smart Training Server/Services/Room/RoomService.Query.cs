@@ -1,4 +1,4 @@
-﻿using Smart_Training_Server.Models;
+using Smart_Training_Server.Models;
 using Smart_Training_Server.Responses.Lobby;
 using Smart_Training_Server.Responses.Room;
 
@@ -14,9 +14,10 @@ namespace Smart_Training_Server.Services.Room
             {
                 ExpireReservations();
                 var lobby = lobbyService.FindById(lobbyId);
-                return lobby?.Rooms.Values.OrderBy(room => room.CreatedAt).ThenBy(room => room.Id, StringComparer.Ordinal).Select(ToRoomSummary).ToArray();
+                return lobby?.Rooms.Values.Where(room => room.IsListed).OrderBy(room => room.CreatedAt).ThenBy(room => room.Id, StringComparer.Ordinal).Select(ToRoomSummary).ToArray();
             }
         }
+
 
         // 지정 로비 안의 방인지 확인한 뒤 단일 요약을 반환합니다. 다른 로비의 방은 조회하지 않습니다.
         public RoomSummaryResponse? GetRoomByLobby(string lobbyId, string roomId)
@@ -29,6 +30,7 @@ namespace Smart_Training_Server.Services.Room
                 return room == null ? null : ToRoomSummary(room);
             }
         }
+
 
         private static RoomSummaryResponse ToRoomSummary(RoomInfo room)
         {
@@ -52,9 +54,9 @@ namespace Smart_Training_Server.Services.Room
                 IsRunning = room.IsRunning,
                 State = room.State,
                 CreatedAt = room.CreatedAt
-
             };
         }
+
 
         // HTTP 상태와 참가자 목록을 함께 반환합니다. 로비 존재 여부와 요청자의 소속부터 검사합니다.
         public (int StatusCode, IReadOnlyList<LobbyParticipantResponse> Participants) GetLobbyParticipants(string lobbyId, string authenticatedUserId)
@@ -90,41 +92,28 @@ namespace Smart_Training_Server.Services.Room
                         room.Users.ContainsKey(user.Id) &&
                         connectedTokens.ContainsKey(user.Id))
                     {
-                        result.Add(new() {
-                                UserId = user.Id,
-                                Nickname = user.Name,
-                                ConnectionState = "connected",
-                                RoomId = room.Id,
-                                RoomName = room.Name,
-                                IsRoomMaster = room.MasterUserId == user.Id,
-                                RoomIsRunning = room.IsRunning
-                            });
+                        result.Add(new() { UserId = user.Id, Nickname = user.Name, ConnectionState = "connected", RoomId = room.Id, RoomName = room.Name, IsRoomMaster = room.MasterUserId == user.Id, RoomIsRunning = room.IsRunning });
                     }
                     else if (reservations.TryGetValue(user.Id, out var reservation) &&
                         FindById(reservation.RoomId)is { } pending &&
                         pending.LobbyId == lobbyId &&
                         !pending.IsClosing)
                     {
-                        result.Add(new() {
-                                UserId = user.Id,
-                                Nickname = user.Name,
-                                ConnectionState = "reserved",
-                                RoomId = pending.Id,
-                                RoomName = pending.Name
-                            });
+                        result.Add(new() { UserId = user.Id, Nickname = user.Name, ConnectionState = "reserved", RoomId = pending.Id, RoomName = pending.Name });
                     }
                     else
                     {
-                        result.Add(new() {
-                                UserId = user.Id,
-                                Nickname = user.Name
-                            });
+                        result.Add(new() { UserId = user.Id, Nickname = user.Name });
                     }
                 }
 
-                return (200, result.OrderBy(item => item.Nickname, StringComparer.OrdinalIgnoreCase).ThenBy(item => item.UserId, StringComparer.Ordinal).ToArray());
+                return (200, result.OrderBy(
+                    item => item.Nickname,
+                    StringComparer.OrdinalIgnoreCase
+                ).ThenBy(item => item.UserId, StringComparer.Ordinal).ToArray());
             }
         }
+
 
         // 공개 조회와 달리 예약 만료나 상태 변경 없이 운영용 스냅샷만 만듭니다.
         public IReadOnlyList<RoomSummaryResponse> GetOperationsRooms()
@@ -134,6 +123,7 @@ namespace Smart_Training_Server.Services.Room
                 return rooms.Values.OrderBy(x => x.LobbyId).ThenBy(x => x.Id).Select(ToRoomSummary).ToArray();
             }
         }
+
 
         // 현재 방 소속·실제 참가자·접속 토큰이 모두 일치하는 경우에만 방 채팅을 허용합니다.
         internal bool CanUseRoomChat(string userId, string roomId, string admissionToken)
@@ -147,7 +137,15 @@ namespace Smart_Training_Server.Services.Room
 
                 var room = FindById(roomId);
                 var user = userService.FindById(userId);
-                return room != null && !room.IsClosing && user != null && user.CurrentRoomId == room.Id && user.CurrentLobbyId == room.LobbyId && room.Users.ContainsKey(userId) && serverConnections.ContainsKey(roomId) && connectedTokens.TryGetValue(userId, out var current) && current == admissionToken;
+                return room != null &&
+                    !room.IsClosing &&
+                    user != null &&
+                    user.CurrentRoomId == room.Id &&
+                    user.CurrentLobbyId == room.LobbyId &&
+                    room.Users.ContainsKey(userId) &&
+                    serverConnections.ContainsKey(roomId) &&
+                    connectedTokens.TryGetValue(userId, out var current) &&
+                    current == admissionToken;
             }
         }
     }

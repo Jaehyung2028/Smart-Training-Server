@@ -39,6 +39,27 @@
             ]
           }
         ]
+      },
+      {
+        "id": 8,
+        "title": "협동 정비 실습",
+        "contentType": "category",
+        "children": [
+          {
+            "id": 7,
+            "title": "협동 장비 접점 정비 (2인)",
+            "contentType": "scenario",
+            "assetId": "content/scenario/cooperative-maintenance",
+            "children": []
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "공구 8종 종합 실습",
+        "contentType": "scenario",
+        "assetId": "content/scenario/workplace-tools",
+        "children": []
       }
     ]
   },
@@ -76,9 +97,23 @@
           },
           {
             "id": 11,
-            "title": "볼트 풀기 및 결과 확인 실습",
+            "title": "공구별 체결·타격 실습",
             "contentType": "scenario",
             "assetId": "content/scenario/tool-assembly",
+            "children": []
+          }
+        ]
+      },
+      {
+        "id": 17,
+        "title": "협동 복구 실습",
+        "contentType": "category",
+        "children": [
+          {
+            "id": 18,
+            "title": "협동 방호 덮개 복구 (2인)",
+            "contentType": "scenario",
+            "assetId": "content/scenario/cooperative-safety",
             "children": []
           }
         ]
@@ -130,6 +165,20 @@
                 "children": []
               }
             ]
+          }
+        ]
+      },
+      {
+        "id": 27,
+        "title": "협동 복구 실습",
+        "contentType": "category",
+        "children": [
+          {
+            "id": 28,
+            "title": "협동 비상 유도등 복구 (4인)",
+            "contentType": "scenario",
+            "assetId": "content/scenario/cooperative-emergency",
+            "children": []
           }
         ]
       }

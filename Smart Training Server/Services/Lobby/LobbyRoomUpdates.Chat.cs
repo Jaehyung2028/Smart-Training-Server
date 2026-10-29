@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using Smart_Training_Server.Models;
 using Smart_Training_Server.Responses.Lobby;
 using Smart_Training_Server.Responses.Room;
 
@@ -35,17 +36,11 @@ namespace Smart_Training_Server.Services.Lobby
                     return (false, error, null, null);
                 }
 
-                var payload = JsonSerializer.Serialize(new ChatMessageResponse {
-                        Id = Guid.NewGuid().ToString("N"),
-                        LobbyId = subscription.LobbyId,
-                        UserId = user.Id,
-                        Nickname = user.Name,
-                        Text = text,
-                        SentAt = DateTimeOffset.UtcNow
-                    });
+                var payload = CreateChatPayload(subscription.LobbyId, user, text);
                 return (true, "전송했습니다.", payload, GetGroupName(subscription.LobbyId));
             }
         }
+
 
         // 채팅 길이·내용과 사용자별 전송 간격을 확인합니다. 오류 메시지가 없으면 유효한 입력입니다.
         private string? ValidateChatTextAndRate(string userId, string? text)
@@ -61,8 +56,7 @@ namespace Smart_Training_Server.Services.Lobby
                 lastChat.Remove(entry.Key);
             }
 
-            if (lastChat.TryGetValue(userId, out var previous) &&
-                Stopwatch.GetElapsedTime(previous, now).TotalSeconds < 1)
+            if (lastChat.TryGetValue(userId, out var previous) && Stopwatch.GetElapsedTime(previous, now).TotalSeconds < 1)
             {
                 return "메시지는 1초에 한 번 전송할 수 있습니다.";
             }
@@ -70,6 +64,7 @@ namespace Smart_Training_Server.Services.Lobby
             lastChat[userId] = now;
             return null;
         }
+
 
         // API 실행 동안 증가하는 번호입니다. 같은 SignalR 연결로 재입장해도 이전 메시지를 구분합니다.
         private long roomChatSequence;
@@ -116,7 +111,6 @@ namespace Smart_Training_Server.Services.Lobby
                     {
                         Success = true,
                         ChatSequence = roomChatSequence
-
                     };
                 }
 
@@ -133,13 +127,18 @@ namespace Smart_Training_Server.Services.Lobby
                 {
                     Success = true,
                     ChatSequence = roomChatSequence
-
                 };
             }
         }
 
+
         // 방 소속·토큰·구독을 확인하고 같은 방 그룹에 보낼 메시지를 만듭니다.
-        public (bool Success, string Message, string? Payload, string? GroupName) PrepareRoomChat(string connectionId, string roomId, string admissionToken, string? text)
+        public (bool Success, string Message, string? Payload, string? GroupName) PrepareRoomChat(
+            string connectionId,
+            string roomId,
+            string admissionToken,
+            string? text
+        )
         {
             lock (users.MembershipLock)
             {
@@ -164,18 +163,16 @@ namespace Smart_Training_Server.Services.Lobby
                     return (false, error, null, null);
                 }
 
-                var payload = JsonSerializer.Serialize(new ChatMessageResponse {
-                        Id = Guid.NewGuid().ToString("N"),
-                        LobbyId = subscription.LobbyId,
-                        RoomId = roomId,
-                        Sequence = ++roomChatSequence,
-                        UserId = user.Id,
-                        Nickname = user.Name,
-                        Text = text,
-                        SentAt = DateTimeOffset.UtcNow
-                    });
+                var payload = CreateChatPayload(subscription.LobbyId, user, text, roomId);
                 return (true, "전송했습니다.", payload, GetRoomGroupName(roomId));
             }
+        }
+
+
+        // 권한·입력 검사 후 MembershipLock 안에서 호출합니다. 공통 필드와 방 메시지 번호를 한곳에서 만듭니다.
+        private string CreateChatPayload(string lobbyId, UserInfo user, string text, string? roomId = null)
+        {
+            return JsonSerializer.Serialize(new ChatMessageResponse { Id = Guid.NewGuid().ToString("N"), LobbyId = lobbyId, RoomId = roomId, Sequence = roomId == null ? null : ++roomChatSequence, UserId = user.Id, Nickname = user.Name, Text = text, SentAt = DateTimeOffset.UtcNow });
         }
     }
 }

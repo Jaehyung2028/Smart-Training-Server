@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
@@ -31,20 +31,12 @@ internal static class QueryChecks
         }
 
         var clock = new TestClock();
-        var users = new UserService(Options.Create(new AuthOptions {
-                    NameMinLength = 1,
-                    NameMaxLength = 20
-                }));
+        var users = new UserService(Options.Create(new AuthOptions { NameMinLength = 1, NameMaxLength = 20 }));
         var lobbies = TestCatalogLobbies.Create(users, "query-lobby", "empty-lobby");
         var rooms = new RoomService(
             lobbies,
             users,
-            Options.Create(new RoomOptions {
-                    NameMinLength = 1,
-                    NameMaxLength = 20,
-                    MinUsers = 1,
-                    MaxUsers = 10
-                }),
+            Options.Create(new RoomOptions { NameMinLength = 1, NameMaxLength = 20, MinUsers = 1, MaxUsers = 10 }),
             clock
         );
         var login = users.Login(new LoginRequest { UserName = "query-user" });
@@ -52,23 +44,42 @@ internal static class QueryChecks
         var lobby = TestCatalogLobbies.Get(lobbies, "query-lobby");
         var empty = TestCatalogLobbies.Get(lobbies, "empty-lobby");
         await lobbies.JoinLobby(person.Id, new LobbyMembershipRequest { LobbyId = lobby.Id });
-        var room = TestRoomSetup.Create(rooms,
+        var room = TestRoomSetup.Create(
+            rooms,
             person.Id,
-            new CreateRoomRequest {
-                LobbyId = lobby.Id,
-                RoomName = "query-room",
-                ContentId = "sample-training", ContentNodeId = 2,
-                MaxUsers = 2
-            }
+            new CreateRoomRequest { LobbyId = lobby.Id, RoomName = "query-room", ContentId = "sample-training", ContentNodeId = 2, MaxUsers = 2 }
         ).Room!;
         room.ServerToken = "private-server-token";
         room.State = Smart_Training_Server.Enum.ServerState.Starting;
-        Check(rooms.RegisterServer(room.Id, room.ServerToken, "query-server"), "prepare query server fixture");
-        var admission = await rooms.JoinRoom(person.Id, new JoinRoomRequest {
-                LobbyId = lobby.Id,
-                RoomId = room.Id
-            });
+        Check(
+            rooms.RegisterServer(room.Id, room.ServerToken, "query-server"),
+            "prepare query server fixture"
+        );
+        var admission = await rooms.JoinRoom(person.Id, new JoinRoomRequest { LobbyId = lobby.Id, RoomId = room.Id });
         Check(admission.Success, "prepare query reservation");
+        Check(
+            rooms.GetRoomsByLobby(lobby.Id)!.Count == 0 && lobbies.GetLobbySummary(lobby.Id)!.RoomCount == 0,
+            "reserved master room is hidden from public list and lobby count"
+        );
+        Check(
+            rooms.GetOperationsRooms().Any(item => item.Id == room.Id),
+            "operations retains unconfirmed room"
+        );
+        Check(
+            !rooms.ConfirmConnection(room.Id, "query-server", person.Id, "wrong-token").Success &&
+            rooms.GetRoomsByLobby(lobby.Id)!.Count == 0,
+            "failed connection does not publish room"
+        );
+        Check(
+            rooms.ConfirmConnection(
+            room.Id,
+            "query-server",
+            person.Id,
+            admission.AdmissionToken
+        ).Success &&
+            rooms.GetRoomsByLobby(lobby.Id)!.Count == 1,
+            "master confirmed connection publishes room"
+        );
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         builder.Services.AddSingleton(users).AddSingleton(lobbies).AddSingleton(rooms);
@@ -104,14 +115,20 @@ internal static class QueryChecks
             );
             var lobbyRaw = await client.GetStringAsync("api/Lobby");
             Check(
-                !lobbyRaw.Contains("private-server-token") && !lobbyRaw.Contains(admission.AdmissionToken) && !lobbyRaw.Contains("\"users\"") && !lobbyRaw.Contains("\"rooms\"") && !lobbyRaw.Contains("\"contents\""),
+                !lobbyRaw.Contains("private-server-token") &&
+                !lobbyRaw.Contains(admission.AdmissionToken) &&
+                !lobbyRaw.Contains("\"users\"") &&
+                !lobbyRaw.Contains("\"rooms\"") &&
+                !lobbyRaw.Contains("\"contents\""),
                 "lobby list excludes nested internal objects and tokens"
             );
             var contentList = await client.GetFromJsonAsync<Smart_Training_Server.Responses.Lobby.ContentQueryResponse[]>($"api/Lobby/{lobby.Id}/contents");
             var expectedContent = lobby.Contents["sample-training"];
             var queriedContent = contentList!.Single(item => item.RootContent == "sample-training");
             Check(
-                contentList.Length == lobby.Contents.Count && queriedContent.Id == expectedContent.Id && queriedContent.Children.Count == expectedContent.Children.Count,
+                contentList.Length == lobby.Contents.Count &&
+                queriedContent.Id == expectedContent.Id &&
+                queriedContent.Children.Count == expectedContent.Children.Count,
                 "content query preserves all roots and sample hierarchy"
             );
             var contentRaw = await client.GetStringAsync($"api/Lobby/{lobby.Id}/contents");
@@ -123,12 +140,14 @@ internal static class QueryChecks
             var previousTitle = expectedContent.Title;
             expectedContent.Title = "changed-title";
             Check(
-                contentSnapshot.Single(item => item.RootContent == "sample-training").Title == previousTitle && lobbies.GetContentsByLobby(lobby.Id)!.Single(item => item.RootContent == "sample-training").Title == "changed-title",
+                contentSnapshot.Single(item => item.RootContent == "sample-training").Title == previousTitle &&
+                lobbies.GetContentsByLobby(lobby.Id)!.Single(item => item.RootContent == "sample-training").Title == "changed-title",
                 "content query returns independent snapshot"
             );
             expectedContent.Title = previousTitle;
             Check(
-                (await client.GetAsync("api/Lobby/missing")).StatusCode == HttpStatusCode.NotFound && (await client.GetAsync("api/Lobby/missing/contents")).StatusCode == HttpStatusCode.NotFound,
+                (await client.GetAsync("api/Lobby/missing")).StatusCode == HttpStatusCode.NotFound &&
+                (await client.GetAsync("api/Lobby/missing/contents")).StatusCode == HttpStatusCode.NotFound,
                 "lobby and content query return 404 for missing lobby"
             );
             using (var anonymous = new HttpClient
@@ -139,7 +158,9 @@ internal static class QueryChecks
             )
             {
                 Check(
-                    (await anonymous.GetAsync("api/Lobby")).StatusCode == HttpStatusCode.Unauthorized && (await anonymous.GetAsync($"api/Lobby/{lobby.Id}")).StatusCode == HttpStatusCode.Unauthorized && (await anonymous.GetAsync($"api/Lobby/{lobby.Id}/contents")).StatusCode == HttpStatusCode.Unauthorized,
+                    (await anonymous.GetAsync("api/Lobby")).StatusCode == HttpStatusCode.Unauthorized &&
+                    (await anonymous.GetAsync($"api/Lobby/{lobby.Id}")).StatusCode == HttpStatusCode.Unauthorized &&
+                    (await anonymous.GetAsync($"api/Lobby/{lobby.Id}/contents")).StatusCode == HttpStatusCode.Unauthorized,
                     "all lobby queries require authentication"
                 );
             }
@@ -155,7 +176,7 @@ internal static class QueryChecks
                 "HTTP list includes only lobby rooms and content"
             );
             Check(
-                list![0].ConnectedUsers == 0 && list[0].ReservedUsers == 1 && list[0].AvailableSlots == 1,
+                list![0].ConnectedUsers == 1 && list[0].ReservedUsers == 0 && list[0].AvailableSlots == 1,
                 "HTTP list distinguishes reservations from connections"
             );
             var detail = await client.GetFromJsonAsync<RoomSummaryResponse>($"api/Lobby/{lobby.Id}/rooms/{room.Id}");
@@ -166,12 +187,16 @@ internal static class QueryChecks
             var raw = await client.GetStringAsync($"api/Lobby/{lobby.Id}/rooms/{room.Id}");
             using var json = JsonDocument.Parse(raw);
             Check(
-                !raw.Contains("private-server-token") && !raw.Contains(admission.AdmissionToken) && !json.RootElement.TryGetProperty("users", out _) && !json.RootElement.TryGetProperty("serverToken", out _),
+                !raw.Contains("private-server-token") &&
+                !raw.Contains(admission.AdmissionToken) &&
+                !json.RootElement.TryGetProperty("users", out _) &&
+                !json.RootElement.TryGetProperty("serverToken", out _),
                 "HTTP query excludes tokens and internal user objects"
             );
             var emptyResponse = await client.GetAsync($"api/Lobby/{empty.Id}/rooms");
             Check(
-                emptyResponse.StatusCode == HttpStatusCode.OK && (await emptyResponse.Content.ReadFromJsonAsync<RoomSummaryResponse[]>())!.Length == 0,
+                emptyResponse.StatusCode == HttpStatusCode.OK &&
+                (await emptyResponse.Content.ReadFromJsonAsync<RoomSummaryResponse[]>())!.Length == 0,
                 "existing empty lobby returns 200 and empty array"
             );
             Check(
@@ -187,7 +212,12 @@ internal static class QueryChecks
                 "other lobby cannot resolve room"
             );
             Check(
-                rooms.ConfirmConnection(room.Id, "query-server", person.Id, admission.AdmissionToken).Success,
+                rooms.ConfirmConnection(
+                room.Id,
+                "query-server",
+                person.Id,
+                admission.AdmissionToken
+            ).Success,
                 "confirm connection for query"
             );
             var connected = await client.GetFromJsonAsync<RoomSummaryResponse>($"api/Lobby/{lobby.Id}/rooms/{room.Id}");
@@ -195,7 +225,10 @@ internal static class QueryChecks
                 connected!.ConnectedUsers == 1 && connected.ReservedUsers == 0 && connected.AvailableSlots == 1,
                 "query reflects confirmed membership"
             );
-            Check(detail.ConnectedUsers == 0 && detail.ReservedUsers == 1, "previous query is stable snapshot");
+            Check(
+                detail.ConnectedUsers == 1 && detail.ReservedUsers == 0,
+                "previous connected query is stable snapshot"
+            );
             var another = users.Login(new LoginRequest { UserName = "query-second" }).User!;
             await lobbies.JoinLobby(another.Id, new LobbyMembershipRequest { LobbyId = lobby.Id });
             var updatedLobby = await client.GetFromJsonAsync<Smart_Training_Server.Responses.Lobby.LobbySummaryResponse>($"api/Lobby/{lobby.Id}");
@@ -203,10 +236,7 @@ internal static class QueryChecks
                 updatedLobby!.UserCount == 2 && lobbyDetail.UserCount == 1,
                 "lobby query reflects join while previous snapshot stays unchanged"
             );
-            var pending = await rooms.JoinRoom(another.Id, new JoinRoomRequest {
-                    LobbyId = lobby.Id,
-                    RoomId = room.Id
-                });
+            var pending = await rooms.JoinRoom(another.Id, new JoinRoomRequest { LobbyId = lobby.Id, RoomId = room.Id });
             Check(
                 pending.Success && rooms.GetRoomByLobby(lobby.Id, room.Id)!.AvailableSlots == 0,
                 "reserved slot fills capacity"

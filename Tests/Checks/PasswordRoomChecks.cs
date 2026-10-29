@@ -86,7 +86,7 @@ internal static class PasswordRoomChecks
             "room serialization excludes plaintext, hash and salt"
         );
         Check(
-            rooms.GetRoomsByLobby(lobby.Id)!.Single(r => r.Id == room.Id).HasPassword && !rooms.GetRoomByLobby(lobby.Id, publicRoom.Id)!.HasPassword,
+            rooms.GetRoomByLobby(lobby.Id, room.Id)!.HasPassword && !rooms.GetRoomByLobby(lobby.Id, publicRoom.Id)!.HasPassword,
             "room list and detail expose protection flag only"
         );
         async Task<Smart_Training_Server.Responses.Room.JoinRoomResponse> Join(UserInfo user, string? value) => await rooms.JoinRoom(user.Id, new() {

@@ -53,13 +53,6 @@
             "children": []
           }
         ]
-      },
-      {
-        "id": 9,
-        "title": "공구 8종 종합 실습",
-        "contentType": "scenario",
-        "assetId": "content/scenario/workplace-tools",
-        "children": []
       }
     ]
   },
